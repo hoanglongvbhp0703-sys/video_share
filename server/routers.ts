@@ -451,7 +451,13 @@ export const appRouter = router({
 
     toggle: protectedProcedure
       .input(z.object({ channelId: z.number() }))
-      .mutation(({ input, ctx }) => toggleSubscription(input.channelId, ctx.user.id)),
+      .mutation(async ({ input, ctx }) => {
+        const channel = await getChannelById(input.channelId);
+        if (!channel) throw new TRPCError({ code: "NOT_FOUND", message: "Kênh không tồn tại" });
+        if (channel.userId === ctx.user.id)
+          throw new TRPCError({ code: "FORBIDDEN", message: "Không thể đăng ký kênh của chính mình" });
+        return toggleSubscription(input.channelId, ctx.user.id);
+      }),
 
     getCount: publicProcedure
       .input(z.object({ channelId: z.number() }))

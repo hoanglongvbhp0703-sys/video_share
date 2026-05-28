@@ -133,6 +133,39 @@
   }
 }
 
+/* ─── Global dark-mode overrides for hardcoded Tailwind color classes ─── */
+/* Components dùng bg-white/gray-* cứng — override ở đây thay vì sửa từng file */
+.dark .bg-white        { background-color: var(--background); }
+.dark .bg-gray-50      { background-color: var(--background); }
+.dark .bg-gray-100     { background-color: var(--card); }
+.dark .bg-gray-200     { background-color: var(--muted); }
+.dark .bg-gray-300     { background-color: var(--accent); }
+
+.dark .text-gray-900,
+.dark .text-gray-800   { color: var(--foreground); }
+.dark .text-gray-700,
+.dark .text-gray-600   { color: var(--muted-foreground); }
+.dark .text-gray-500,
+.dark .text-gray-400   { color: var(--muted-foreground); }
+.dark .text-gray-300   { color: oklch(0.5 0.01 286); }
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 { border-color: var(--border); }
+
+/* Hover states */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover { background-color: var(--accent); }
+.dark .hover\:bg-gray-200:hover  { background-color: var(--muted); }
+
+/* Input/search borders */
+.dark .focus\:border-primary:focus { border-color: var(--primary); }
+
+/* Shadow — soften in dark mode */
+.dark .shadow-sm  { box-shadow: 0 1px 2px 0 oklch(0 0 0 / 0.3); }
+.dark .shadow-lg  { box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.4), 0 4px 6px -4px oklch(0 0 0 / 0.4); }
+.dark .shadow-xl  { box-shadow: 0 20px 25px -5px oklch(0 0 0 / 0.5), 0 8px 10px -6px oklch(0 0 0 / 0.5); }
+
 @layer components {
   /**
    * Custom container utility that centers content and adds responsive padding.

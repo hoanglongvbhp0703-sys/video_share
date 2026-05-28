@@ -75,7 +75,7 @@ export default function Channel() {
   };
 
   const displayChannel = channelId ? channel : myChannel;
-  const isMyChannel = !channelId && isAuthenticated;
+  const isMyChannel = isAuthenticated && !!displayChannel && displayChannel.userId === user?.id;
 
   if (channelLoading || !displayChannel) {
     return (

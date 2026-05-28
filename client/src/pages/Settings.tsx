@@ -60,12 +60,11 @@ export default function Settings() {
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    const updates: { name?: string; bio?: string } = {};
-    if (name.trim() && name.trim() !== user?.name) updates.name = name.trim();
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
     const trimmedBio = bio.trim();
-    if (trimmedBio !== ((user as any)?.bio || "")) updates.bio = trimmedBio;
-    if (Object.keys(updates).length === 0) return;
-    updateProfile.mutate(updates);
+    // Luôn gửi name để channel name đồng bộ với tên tài khoản
+    updateProfile.mutate({ name: trimmedName, bio: trimmedBio });
   };
 
   const handleChangePassword = (e: React.FormEvent) => {

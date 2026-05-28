@@ -23,8 +23,8 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !email.includes("@")) {
-      setError("Vui lòng nhập email hợp lệ");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Email không hợp lệ (phải có dạng example@domain.com)");
       return;
     }
     if (!name.trim()) {
@@ -59,8 +59,10 @@ export default function Register() {
         setError("Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.");
       } else if (data?.error === "NO_PASSWORD") {
         setError("Email này đã đăng ký qua phương thức khác. Vui lòng dùng email khác.");
+      } else if (data?.error === "EMAIL_INVALID") {
+        setError(data.message || "Email không hợp lệ");
       } else {
-        setError(data?.message || data?.error || "Đăng ký thất bại");
+        setError("Đăng ký thất bại, vui lòng thử lại");
       }
     } catch {
       setError("Không thể kết nối đến server");

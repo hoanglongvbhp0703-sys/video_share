@@ -38,7 +38,7 @@ export default function Layout({ children, onSearchChange }: LayoutProps) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-background">
       <TopNavigation
         onSearchChange={onSearchChange}
         onSidebarToggle={handleToggle}

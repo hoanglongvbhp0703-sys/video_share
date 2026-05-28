@@ -205,15 +205,17 @@ export default function Watch() {
                   </p>
                 </div>
               </Link>
-              <Button
-                variant={isSubscribed ? "outline" : "default"}
-                onClick={handleToggleSubscription}
-                disabled={toggleSubscriptionMutation.isPending}
-                className="gap-2"
-              >
-                <Bell className="w-4 h-4" />
-                {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
-              </Button>
+              {channel?.userId !== user?.id && (
+                <Button
+                  variant={isSubscribed ? "outline" : "default"}
+                  onClick={handleToggleSubscription}
+                  disabled={toggleSubscriptionMutation.isPending}
+                  className="gap-2"
+                >
+                  <Bell className="w-4 h-4" />
+                  {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
+                </Button>
+              )}
             </div>
 
             {/* Like/Dislike and Share */}

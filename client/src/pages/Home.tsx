@@ -31,8 +31,8 @@ export default function Home() {
         <div className="p-4 md:p-6">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Khám phá</h1>
-            <p className="text-gray-600 text-sm mt-1">Những video được xem nhiều nhất</p>
+            <h1 className="text-2xl font-bold text-foreground">Khám phá</h1>
+            <p className="text-muted-foreground text-sm mt-1">Những video được xem nhiều nhất</p>
           </div>
 
           {/* Video Grid */}

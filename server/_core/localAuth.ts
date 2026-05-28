@@ -21,8 +21,8 @@ export function registerLocalAuthRoutes(app: Express) {
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     const { email, password, name } = req.body ?? {};
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      res.status(400).json({ error: "Email không hợp lệ" });
+    if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      res.status(400).json({ error: "EMAIL_INVALID", message: "Email không hợp lệ (phải có dạng example@domain.com)" });
       return;
     }
 
@@ -84,7 +84,7 @@ export function registerLocalAuthRoutes(app: Express) {
       res.json({ success: true });
     } catch (error) {
       console.error("[LocalAuth] Login failed", error);
-      res.status(500).json({ error: "Đăng nhập thất bại, vui lòng thử lại" });
+      res.status(500).json({ error: "SERVER_ERROR", message: "Đã xảy ra lỗi, vui lòng thử lại" });
     }
   });
 }

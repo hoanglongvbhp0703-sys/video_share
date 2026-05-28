@@ -43,7 +43,7 @@ export default function VideoCard({ video }: VideoCardProps) {
       className="group cursor-pointer flex flex-col gap-2"
     >
       {/* Thumbnail */}
-      <div className="relative w-full bg-gray-200 rounded-lg overflow-hidden aspect-video group-hover:rounded-none transition-all">
+      <div className="relative w-full bg-muted rounded-lg overflow-hidden aspect-video group-hover:rounded-none transition-all">
         {video.thumbnailUrl ? (
           <img
             src={video.thumbnailUrl}
@@ -75,11 +75,11 @@ export default function VideoCard({ video }: VideoCardProps) {
 
         {/* Title and Metadata */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm text-gray-900 line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="font-medium text-sm text-foreground line-clamp-2 group-hover:text-primary transition-colors">
             {video.title}
           </h3>
-          <p className="text-xs text-gray-600 mt-1">{video.channelName}</p>
-          <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">{video.channelName}</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
             <div className="flex items-center gap-1">
               <Eye className="w-3 h-3" />
               <span>{formatViewCount(video.viewCount)} lượt xem</span>

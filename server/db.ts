@@ -15,7 +15,12 @@ let _db: DrizzleDB | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      const client = postgres(process.env.DATABASE_URL);
+      const client = postgres(process.env.DATABASE_URL, {
+        max: 1,            // Supabase session pooler: 1 connection/process để tránh EMAXCONNSESSION
+        idle_timeout: 10,  // đóng connection nhàn rỗi sau 10s
+        connect_timeout: 10,
+        prepare: false,    // bắt buộc khi dùng pgBouncer/Supabase pooler
+      });
       _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
@@ -124,7 +129,7 @@ export async function getOrCreateChannel(userId: number, userName: string) {
 
   await db.insert(channels).values({
     userId,
-    name: `${userName}'s Channel`,
+    name: userName,
   });
 
   const created = await db

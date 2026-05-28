@@ -44,7 +44,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         "flex items-center gap-4 px-3 py-2 rounded-lg transition-colors",
         isActive(href)
           ? "bg-primary/10 text-primary font-medium"
-          : "text-gray-700 hover:bg-gray-100"
+          : "text-foreground hover:bg-accent"
       )}
     >
       <Icon className="w-5 h-5 flex-shrink-0" />
@@ -65,16 +65,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed md:sticky top-16 left-0 h-[calc(100vh-64px)] w-64 bg-white border-r border-gray-200 overflow-y-auto transition-transform duration-300 z-40",
+          "fixed md:sticky top-16 left-0 h-[calc(100vh-64px)] w-64 bg-background border-r border-border overflow-y-auto transition-transform duration-300 z-40",
           isOpen ? "translate-x-0" : "-translate-x-full md:hidden"
         )}
       >
         <div className="flex flex-col h-full">
           {/* Close Button for Mobile */}
-          <div className="md:hidden p-4 border-b border-gray-200">
+          <div className="md:hidden p-4 border-b border-border">
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-accent rounded-full transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -90,14 +90,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             {isAuthenticated && (
               <>
                 <div className="pt-2 pb-1 px-3">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tài khoản</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tài khoản</p>
                 </div>
                 <NavLink href="/history" icon={History} label="Lịch sử xem" />
                 <NavLink href="/playlists" icon={ListVideo} label="Danh sách phát" />
                 {user?.role === "admin" && (
                   <>
                     <div className="pt-2 pb-1 px-3">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Quản trị</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quản trị</p>
                     </div>
                     <NavLink href="/admin" icon={ShieldCheck} label="Admin Panel" />
                   </>
@@ -107,11 +107,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </nav>
 
           {/* Footer Navigation */}
-          <div className="border-t border-gray-200 px-3 py-4 space-y-1">
+          <div className="border-t border-border px-3 py-4 space-y-1">
             <Link
               href="/settings"
               onClick={handleNavClick}
-              className="flex items-center gap-4 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-4 px-3 py-2 text-foreground hover:bg-accent rounded-lg transition-colors"
             >
               <Settings className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">Cài đặt</span>
@@ -119,7 +119,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Link
               href="/help"
               onClick={handleNavClick}
-              className="flex items-center gap-4 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-4 px-3 py-2 text-foreground hover:bg-accent rounded-lg transition-colors"
             >
               <HelpCircle className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">Trợ giúp</span>
