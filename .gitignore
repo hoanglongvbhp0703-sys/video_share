@@ -112,6 +112,30 @@ server/uploads/
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 
-# Manus version file (auto-generated, not part of source)
-client/public/__manus__/version.json
+# Manus platform internal files (not part of project source)
+client/public/__manus__/
+template.json
 .project-config.json
+
+# Claude Code AI settings (internal tooling)
+.claude/
+
+# Drizzle generated migration artifacts (project uses db:push, not migrations)
+drizzle/meta/
+drizzle/migrations/
+drizzle/[0-9]*.sql
+
+# npm lock file (project uses pnpm — pnpm-lock.yaml is the lock file)
+package-lock.json
+
+# Personal notes and internal references
+todo.md
+references/
+
+# One-off database migration/utility scripts (not part of ongoing source)
+server/add-*.mjs
+server/check-*.mjs
+
+# Empty placeholder files
+.gitkeep
+**/.gitkeep
