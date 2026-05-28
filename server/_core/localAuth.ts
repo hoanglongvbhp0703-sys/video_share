@@ -35,7 +35,7 @@ export function registerLocalAuthRoutes(app: Express) {
 
       if (user) {
         // Kiểm tra password
-        if (!user.password) {
+        if (!user.passwordHash) {
           res.status(401).json({ error: "NO_PASSWORD", message: "Tài khoản này đăng nhập qua phương thức khác" });
           return;
         }
@@ -43,7 +43,7 @@ export function registerLocalAuthRoutes(app: Express) {
           res.status(400).json({ error: "Vui lòng nhập mật khẩu" });
           return;
         }
-        const passwordMatch = await bcrypt.compare(password, user.password);
+        const passwordMatch = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatch) {
           res.status(401).json({ error: "INVALID_CREDENTIALS", message: "Email hoặc mật khẩu không đúng" });
           return;
@@ -68,7 +68,7 @@ export function registerLocalAuthRoutes(app: Express) {
           name: displayName,
           email: emailLower,
           loginMethod: "local",
-          password: passwordHash,
+          passwordHash,
           lastSignedIn: new Date(),
         });
 
@@ -109,7 +109,7 @@ export function registerLocalAuthRoutes(app: Express) {
     try {
       const user = await db.getUserByEmail(emailLower);
 
-      if (user && user.password) {
+      if (user && user.passwordHash) {
         const token = nanoid(48);
         const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
         await db.createPasswordReset(user.id, token, expiresAt);

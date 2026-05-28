@@ -138,6 +138,10 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Dark mode toàn diện**: Layout/TopNav/Sidebar/VideoCard đã dùng semantic tokens. Một số trang phụ (Profile, Notifications, Playlists, History…) còn dùng `bg-white` cứng — đã có global CSS override trong `index.css` nhưng chưa test hết.
 - **Trang ComponentShowcase**: `client/src/pages/ComponentShowcase.tsx` là trang dev nội bộ, chưa có route — cân nhắc xóa hoặc ẩn
 
+### Đã làm — Session 2026-05-29 (session sau)
+- ✅ **Quên mật khẩu** (`server/_core/localAuth.ts`, `client/src/pages/ForgotPassword.tsx`, `client/src/pages/ResetPassword.tsx`): flow đầy đủ — nhập email → server tạo token 48 ký tự TTL 15 phút lưu bảng `passwordResets`, log link ra console. `/reset-password?token=xxx` xác thực token + đổi mật khẩu, auto-redirect về `/login`. Link "Quên mật khẩu?" trong `Login.tsx` cạnh label Password.
+- ✅ **Đổi tên cột `password` → `passwordHash`** (`drizzle/schema.ts`, `server/db.ts`, `server/_core/localAuth.ts`, `server/routers.ts`, `server/seed-data.mjs`, `drizzle/supabase-setup.sql`): rõ nghĩa hơn, tránh nhầm lẫn plain text vs hash. Migration `ALTER TABLE users RENAME COLUMN "password" TO "passwordHash"` đã chạy trên Supabase. **Các điểm khác trong DB review đã ổn**: FK đầy đủ, indexes đã có, counter dùng triggers, naming convention dùng camelCase có chủ đích (đổi sang snake_case sẽ phá vỡ toàn bộ code).
+
 ### Đã fix — Session 2026-05-29 (session này)
 - ✅ **Email validation** (`Register.tsx`, `localAuth.ts`): regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` — bắt buộc có `@` + domain + `.tld`. Cả frontend lẫn backend đều validate.
 - ✅ **Register error message** (`Register.tsx`, `localAuth.ts`): lỗi server 500 trả `SERVER_ERROR` code thay vì chuỗi "Đăng nhập thất bại". Register page fallback hiện "Đăng ký thất bại" đúng ngữ cảnh.
@@ -216,7 +220,7 @@ npm run seed
 - `JWT_SECRET` — dùng cho ký session token, ví dụ `JWT_SECRET=dev-secret-key-minimum-32chars` (cần thêm để dev login hoạt động)
 
 ## Gotchas
-- **Password auth — user không có password**: User tạo từ OAuth/dev-login/mock cũ có `password = null`. Gọi `POST /api/auth/login` với email đó → 401 `NO_PASSWORD`. Fix: chạy `node server/set-default-password.mjs` để set password mặc định cho các user đó. Không thêm lại passwordless flow.
+- **Password auth — user không có password**: User tạo từ OAuth/dev-login/mock cũ có `passwordHash = null`. Gọi `POST /api/auth/login` với email đó → 401 `NO_PASSWORD`. Fix: chạy `node server/set-default-password.mjs` để set password mặc định cho các user đó. Không thêm lại passwordless flow. **Lưu ý**: cột đã đổi tên từ `password` → `passwordHash` (migration chạy 2026-05-29).
 - **Seed password vs. Supabase user hiện có**: `npm run seed` tạo user mới với `Password123!`. User cũ trong DB (tạo trước session này) đã được update `1234567Long` qua script migration. Hai nhóm dùng password khác nhau.
 - **Admin role assignment**: `upsertUser()` trong `db.ts` tự set `role = "admin"` nếu `openId === ENV.ownerOpenId`. Muốn thêm admin bằng tay: dùng Admin Panel UI (`/admin/users`) hoặc chạy SQL trực tiếp. KHÔNG hardcode role trong code mới.
 - **Admin guard không redirect ngay**: Các trang admin dùng `useEffect` để redirect — render 1 frame null trước khi redirect. Đây là behavior bình thường với React SPA, không phải bug.

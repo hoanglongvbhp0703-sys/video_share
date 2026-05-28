@@ -308,13 +308,13 @@ export const appRouter = router({
         if (!user) throw new TRPCError({ code: "NOT_FOUND" });
 
         // Kiểm tra password hiện tại
-        if (user.password) {
-          const valid = await bcrypt.compare(input.currentPassword, user.password);
+        if (user.passwordHash) {
+          const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
           if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Mật khẩu hiện tại không đúng" });
         }
 
         const newHash = await bcrypt.hash(input.newPassword, 10);
-        await upsertUser({ openId: ctx.user.openId, password: newHash });
+        await upsertUser({ openId: ctx.user.openId, passwordHash: newHash });
         return { success: true };
       }),
   }),

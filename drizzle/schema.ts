@@ -7,7 +7,7 @@ export const users = pgTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  password: text("password"),
+  passwordHash: text("passwordHash"),
   avatarUrl: text("avatarUrl"),
   bio: text("bio"),
   role: varchar("role", { length: 10 }).$type<"user" | "admin">().default("user").notNull(),

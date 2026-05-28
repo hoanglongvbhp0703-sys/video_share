@@ -320,12 +320,12 @@ async function seedDatabase() {
     // Seed admin user
     console.log("👑 Tạo admin user...");
     await sql`
-      INSERT INTO users ("openId", name, email, "loginMethod", password, role)
+      INSERT INTO users ("openId", name, email, "loginMethod", "passwordHash", role)
       VALUES ('admin_user', 'Admin', 'admin@example.com', 'local', ${adminPasswordHash}, 'admin')
       ON CONFLICT ("openId") DO UPDATE SET
         name = EXCLUDED.name,
         email = EXCLUDED.email,
-        password = EXCLUDED.password,
+        "passwordHash" = EXCLUDED."passwordHash",
         role = EXCLUDED.role
     `;
     console.log("✓ Admin user: admin@example.com / Admin123!");
@@ -335,9 +335,9 @@ async function seedDatabase() {
     const userIds = [];
     for (const user of mockUsers) {
       const [result] = await sql`
-        INSERT INTO users ("openId", name, email, "loginMethod", password)
+        INSERT INTO users ("openId", name, email, "loginMethod", "passwordHash")
         VALUES (${user.openId}, ${user.name}, ${user.email}, ${user.loginMethod}, ${mockPasswordHash})
-        ON CONFLICT ("openId") DO UPDATE SET name = EXCLUDED.name, password = EXCLUDED.password
+        ON CONFLICT ("openId") DO UPDATE SET name = EXCLUDED.name, "passwordHash" = EXCLUDED."passwordHash"
         RETURNING id
       `;
       userIds.push(result.id);
