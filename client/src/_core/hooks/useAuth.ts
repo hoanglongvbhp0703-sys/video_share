@@ -56,8 +56,13 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils]);
 
   useEffect(() => {
-    if (meQuery.data && !meQuery.isPlaceholderData) {
-      localStorage.setItem("manus-runtime-user-info", JSON.stringify(meQuery.data));
+    if (!meQuery.isPlaceholderData) {
+      if (meQuery.data) {
+        localStorage.setItem("manus-runtime-user-info", JSON.stringify(meQuery.data));
+      } else {
+        // Server xác nhận không đăng nhập → xóa cache cũ để tránh flash lần sau
+        localStorage.removeItem("manus-runtime-user-info");
+      }
     }
     if (meQuery.error) {
       localStorage.removeItem("manus-runtime-user-info");
@@ -68,6 +73,8 @@ export function useAuth(options?: UseAuthOptions) {
     return {
       user: meQuery.data ?? null,
       loading: (meQuery.isLoading && !meQuery.isPlaceholderData) || logoutMutation.isPending,
+      // true sau khi server đã xác nhận trạng thái auth (không còn dùng placeholder)
+      isAuthReady: !meQuery.isPlaceholderData && !meQuery.isLoading,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
     };
@@ -101,4 +108,5 @@ export function useAuth(options?: UseAuthOptions) {
     refresh: () => meQuery.refetch(),
     logout,
   };
+
 }

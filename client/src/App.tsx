@@ -29,7 +29,10 @@ import Landing from "./pages/Landing";
 import { useAuth } from "./_core/hooks/useAuth";
 
 function RootPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAuthReady } = useAuth();
+  // Chờ server xác nhận trước khi quyết định render trang nào,
+  // tránh flash Home → Landing khi cache localStorage cũ còn lưu.
+  if (!isAuthReady) return null;
   return isAuthenticated ? <Home /> : <Landing />;
 }
 
