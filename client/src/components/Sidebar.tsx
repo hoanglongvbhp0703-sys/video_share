@@ -1,4 +1,4 @@
-import { Home, Flame, Zap, Music, Gamepad2, Film, Tv, Trophy, Newspaper, Settings, HelpCircle, X, History, Bell, ListVideo } from "lucide-react";
+import { Home, Flame, Zap, Music, Gamepad2, Film, Tv, Trophy, Newspaper, Settings, HelpCircle, X, History, Bell, ListVideo, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,7 @@ const mainNav = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const isActive = (href: string) => {
     if (href === "/") return location === "/";
@@ -95,6 +95,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <NavLink href="/history" icon={History} label="Lịch sử xem" />
                 <NavLink href="/playlists" icon={ListVideo} label="Danh sách phát" />
                 <NavLink href="/notifications" icon={Bell} label="Thông báo" />
+                {user?.role === "admin" && (
+                  <>
+                    <div className="pt-2 pb-1 px-3">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Quản trị</p>
+                    </div>
+                    <NavLink href="/admin" icon={ShieldCheck} label="Admin Panel" />
+                  </>
+                )}
               </>
             )}
           </nav>

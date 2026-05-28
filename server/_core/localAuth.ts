@@ -5,20 +5,21 @@ import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 
-const DEFAULT_PASSWORD = "123456Long";
 const SALT_ROUNDS = 10;
 
 export function registerLocalAuthRoutes(app: Express) {
   /**
    * POST /api/auth/login
-   * Body: { email: string, name?: string }
+   * Body: { email: string, password: string, name?: string }
    *
-   * - Email tồn tại → đăng nhập ngay (200)
-   * - Email chưa có, không có name → 422 NAME_REQUIRED (frontend hỏi tên)
-   * - Email chưa có, có name → tạo tài khoản + đăng nhập (200)
+   * - Email tồn tại + password đúng → đăng nhập (200)
+   * - Email tồn tại + password sai → 401 INVALID_CREDENTIALS
+   * - Email tồn tại + không có password trong DB → 401 NO_PASSWORD
+   * - Email chưa có, không có name → 422 NAME_REQUIRED
+   * - Email chưa có, có name + password → tạo tài khoản + đăng nhập (200)
    */
   app.post("/api/auth/login", async (req: Request, res: Response) => {
-    const { email, name } = req.body ?? {};
+    const { email, password, name } = req.body ?? {};
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
       res.status(400).json({ error: "Email không hợp lệ" });
@@ -31,16 +32,34 @@ export function registerLocalAuthRoutes(app: Express) {
       let user = await db.getUserByEmail(emailLower);
 
       if (user) {
+        // Kiểm tra password
+        if (!user.password) {
+          res.status(401).json({ error: "NO_PASSWORD", message: "Tài khoản này đăng nhập qua phương thức khác" });
+          return;
+        }
+        if (!password || typeof password !== "string") {
+          res.status(400).json({ error: "Vui lòng nhập mật khẩu" });
+          return;
+        }
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (!passwordMatch) {
+          res.status(401).json({ error: "INVALID_CREDENTIALS", message: "Email hoặc mật khẩu không đúng" });
+          return;
+        }
         // Cập nhật lastSignedIn
         await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
       } else if (!name || !String(name).trim()) {
         res.status(422).json({ error: "NAME_REQUIRED" });
         return;
       } else {
-        // Tạo user mới với default password hash
+        // Tạo user mới — password bắt buộc
+        if (!password || typeof password !== "string" || password.length < 6) {
+          res.status(422).json({ error: "PASSWORD_REQUIRED", message: "Mật khẩu phải có ít nhất 6 ký tự" });
+          return;
+        }
         const openId = `local:${emailLower}`;
         const displayName = String(name).trim();
-        const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
         await db.upsertUser({
           openId,

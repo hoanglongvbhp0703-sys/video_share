@@ -800,3 +800,100 @@ export async function getVideosByTag(tagName: string, limit: number = 20, offset
     .limit(limit)
     .offset(offset);
 }
+
+// ─── Admin queries ────────────────────────────────────────────────────────────
+
+export async function getAdminStats() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [userCount, videoCount, commentCount, pendingReportCount] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(users),
+    db.select({ count: sql<number>`count(*)::int` }).from(videos),
+    db.select({ count: sql<number>`count(*)::int` }).from(comments),
+    db.select({ count: sql<number>`count(*)::int` }).from(reports).where(eq(reports.status, "pending")),
+  ]);
+
+  return {
+    users: userCount[0]?.count ?? 0,
+    videos: videoCount[0]?.count ?? 0,
+    comments: commentCount[0]?.count ?? 0,
+    pendingReports: pendingReportCount[0]?.count ?? 0,
+  };
+}
+
+export async function listAllUsers(limit: number = 50, offset: number = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      loginMethod: users.loginMethod,
+      createdAt: users.createdAt,
+      lastSignedIn: users.lastSignedIn,
+    })
+    .from(users)
+    .orderBy(desc(users.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function countAllUsers(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+  return result[0]?.count ?? 0;
+}
+
+export async function setUserRole(userId: number, role: "user" | "admin") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+  return { success: true };
+}
+
+export async function listAllReports(limit: number = 50, offset: number = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: reports.id,
+      targetType: reports.targetType,
+      targetId: reports.targetId,
+      reason: reports.reason,
+      description: reports.description,
+      status: reports.status,
+      createdAt: reports.createdAt,
+      reporterName: users.name,
+      reporterEmail: users.email,
+    })
+    .from(reports)
+    .leftJoin(users, eq(reports.userId, users.id))
+    .orderBy(desc(reports.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function updateReportStatus(reportId: number, status: "pending" | "reviewed" | "resolved" | "dismissed") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(reports).set({ status }).where(eq(reports.id, reportId));
+  return { success: true };
+}
+
+export async function adminDeleteVideo(videoId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(videos).where(eq(videos.id, videoId));
+  return { success: true };
+}
+
+export async function adminDeleteComment(commentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(comments).where(eq(comments.id, commentId));
+  return { success: true };
+}

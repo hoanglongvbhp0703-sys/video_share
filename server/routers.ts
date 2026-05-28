@@ -1,7 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import {
@@ -47,6 +47,14 @@ import {
   addTagToVideo,
   getTagsByVideoId,
   getVideosByTag,
+  getAdminStats,
+  listAllUsers,
+  countAllUsers,
+  setUserRole,
+  listAllReports,
+  updateReportStatus,
+  adminDeleteVideo,
+  adminDeleteComment,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -439,6 +447,47 @@ export const appRouter = router({
     getCount: publicProcedure
       .input(z.object({ channelId: z.number() }))
       .query(({ input }) => getChannelSubscriberCount(input.channelId)),
+  }),
+
+  // Admin routers
+  admin: router({
+    getStats: adminProcedure
+      .query(() => getAdminStats()),
+
+    listUsers: adminProcedure
+      .input(z.object({ limit: z.number().default(50), offset: z.number().default(0) }))
+      .query(async ({ input }) => {
+        const [items, total] = await Promise.all([
+          listAllUsers(input.limit, input.offset),
+          countAllUsers(),
+        ]);
+        return { items, total };
+      }),
+
+    setUserRole: adminProcedure
+      .input(z.object({ userId: z.number(), role: z.enum(["user", "admin"]) }))
+      .mutation(({ input, ctx }) => {
+        if (input.userId === ctx.user.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Không thể thay đổi role của chính mình" });
+        }
+        return setUserRole(input.userId, input.role);
+      }),
+
+    listReports: adminProcedure
+      .input(z.object({ limit: z.number().default(50), offset: z.number().default(0) }))
+      .query(({ input }) => listAllReports(input.limit, input.offset)),
+
+    updateReportStatus: adminProcedure
+      .input(z.object({ reportId: z.number(), status: z.enum(["pending", "reviewed", "resolved", "dismissed"]) }))
+      .mutation(({ input }) => updateReportStatus(input.reportId, input.status)),
+
+    deleteVideo: adminProcedure
+      .input(z.object({ videoId: z.number() }))
+      .mutation(({ input }) => adminDeleteVideo(input.videoId)),
+
+    deleteComment: adminProcedure
+      .input(z.object({ commentId: z.number() }))
+      .mutation(({ input }) => adminDeleteComment(input.commentId)),
   }),
 });
 

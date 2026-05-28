@@ -14,8 +14,9 @@ export default function Login() {
   const [, navigate] = useLocation();
 
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [step, setStep] = useState<"email" | "name">("email");
+  const [step, setStep] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,21 +25,24 @@ export default function Login() {
     return null;
   }
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !email.includes("@")) {
       setError("Vui lòng nhập email hợp lệ");
+      return;
+    }
+    if (!password) {
+      setError("Vui lòng nhập mật khẩu");
       return;
     }
     setError("");
     setLoading(true);
 
     try {
-      // Thử đăng nhập trước — nếu email chưa có sẽ cần nhập tên
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), password }),
         credentials: "include",
       });
 
@@ -47,10 +51,15 @@ export default function Login() {
       if (res.ok) {
         window.location.href = "/";
       } else if (res.status === 422 && data?.error === "NAME_REQUIRED") {
-        // Email chưa tồn tại → cần nhập tên để tạo tài khoản
-        setStep("name");
+        // Email chưa tồn tại → chuyển sang form đăng ký
+        setStep("register");
+        setError("");
+      } else if (data?.error === "INVALID_CREDENTIALS") {
+        setError("Email hoặc mật khẩu không đúng");
+      } else if (data?.error === "NO_PASSWORD") {
+        setError("Tài khoản này đăng nhập qua phương thức khác (Google/Manus)");
       } else {
-        setError(data?.error || "Đăng nhập thất bại");
+        setError(data?.message || data?.error || "Đăng nhập thất bại");
       }
     } catch {
       setError("Không thể kết nối đến server");
@@ -59,10 +68,14 @@ export default function Login() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError("Vui lòng nhập tên hiển thị");
+      return;
+    }
+    if (!password || password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự");
       return;
     }
     setError("");
@@ -72,7 +85,7 @@ export default function Login() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), name: name.trim() }),
+        body: JSON.stringify({ email: email.trim(), password, name: name.trim() }),
         credentials: "include",
       });
 
@@ -80,13 +93,19 @@ export default function Login() {
         window.location.href = "/";
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data?.error || "Đăng ký thất bại");
+        setError(data?.message || data?.error || "Đăng ký thất bại");
       }
     } catch {
       setError("Không thể kết nối đến server");
     } finally {
       setLoading(false);
     }
+  };
+
+  const goBackToLogin = () => {
+    setStep("login");
+    setError("");
+    setName("");
   };
 
   return (
@@ -99,13 +118,13 @@ export default function Login() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">VideoShare</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {step === "email" ? "Đăng nhập để tiếp tục" : "Tạo tài khoản mới"}
+            {step === "login" ? "Đăng nhập để tiếp tục" : "Tạo tài khoản mới"}
           </p>
         </div>
 
-        {/* Step 1: Email */}
-        {step === "email" && (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+        {/* Login form */}
+        {step === "login" && (
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Địa chỉ email
@@ -121,11 +140,36 @@ export default function Login() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mật khẩu
+              </label>
+              <Input
+                type="password"
+                placeholder="Nhập mật khẩu"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                disabled={loading}
+                required
+              />
+            </div>
+
             {error && <p className="text-sm text-red-600">{error}</p>}
 
-            <Button type="submit" className="w-full" size="lg" disabled={loading || !email.trim()}>
-              {loading ? "Đang kiểm tra..." : "Tiếp tục"}
+            <Button type="submit" className="w-full" size="lg" disabled={loading || !email.trim() || !password}>
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
+
+            <p className="text-center text-sm text-gray-500">
+              Chưa có tài khoản?{" "}
+              <button
+                type="button"
+                onClick={() => { setStep("register"); setError(""); }}
+                className="text-primary font-medium hover:underline"
+              >
+                Đăng ký ngay
+              </button>
+            </p>
 
             {hasOAuth && (
               <>
@@ -150,11 +194,11 @@ export default function Login() {
           </form>
         )}
 
-        {/* Step 2: Name (new user) */}
-        {step === "name" && (
-          <form onSubmit={handleRegister} className="space-y-4">
+        {/* Register form */}
+        {step === "register" && (
+          <form onSubmit={handleRegisterSubmit} className="space-y-4">
             <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-              Email <strong>{email}</strong> chưa có tài khoản. Nhập tên để tạo mới.
+              Email <strong>{email}</strong> chưa có tài khoản. Điền thông tin để đăng ký.
             </div>
 
             <div>
@@ -171,18 +215,37 @@ export default function Login() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mật khẩu
+              </label>
+              <Input
+                type="password"
+                placeholder="Tối thiểu 6 ký tự"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                disabled={loading}
+                required
+              />
+            </div>
+
             {error && <p className="text-sm text-red-600">{error}</p>}
 
-            <Button type="submit" className="w-full" size="lg" disabled={loading || !name.trim()}>
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={loading || !name.trim() || !password}
+            >
               {loading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
             </Button>
 
             <button
               type="button"
-              onClick={() => { setStep("email"); setError(""); }}
+              onClick={goBackToLogin}
               className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
             >
-              ← Dùng email khác
+              ← Quay lại đăng nhập
             </button>
           </form>
         )}

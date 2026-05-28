@@ -27,11 +27,16 @@ npm run db:triggers  # Áp dụng PostgreSQL triggers lên Supabase (node server
 ### Key Files
 - `drizzle/schema.ts` — PostgreSQL schema (pgTable, pgEnum). Source of truth.
 - `drizzle/triggers.sql` — SQL triggers reference (counter automation). Áp dụng qua `npm run db:triggers`.
-- `server/db.ts` — All DB queries. Lazy connection via `getDb()`.
-- `server/routers.ts` — All tRPC routes (videos, channels, comments, likes, subscriptions).
+- `server/db.ts` — All DB queries. Lazy connection via `getDb()`. Bao gồm admin queries.
+- `server/routers.ts` — All tRPC routes (videos, channels, comments, likes, subscriptions, **admin**).
+- `server/_core/localAuth.ts` — `POST /api/auth/login` với **email + password** (bcrypt verify).
+- `server/_core/trpc.ts` — Middleware: `publicProcedure`, `protectedProcedure`, `adminProcedure` (role check).
 - `server/storage.ts` — File storage: Forge/S3 nếu có env vars, local disk (`server/uploads/`) nếu không.
 - `server/_core/storageProxy.ts` — Serve `/manus-storage/*` (Forge) và `/uploads/*` (local).
 - `server/setup-triggers.mjs` — Script áp dụng triggers lên Supabase.
+- `server/set-default-password.mjs` — Script one-time: set password cho user chưa có trong DB.
+- `client/src/pages/Login.tsx` — Login (email + password) + Register (email + tên + password).
+- `client/src/pages/admin/` — AdminDashboard, AdminUsers, AdminReports.
 - `client/src/` — React pages: Home, Watch, Channel, Upload, Search, Trending.
 - `drizzle.config.ts` — Drizzle Kit config (dialect: postgresql).
 - `.env` — DATABASE_URL (Supabase session pooler, port 5432).
@@ -105,6 +110,9 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Database triggers**: 4 counter triggers — atomic, không race condition
 - **Sidebar state persistent**: localStorage giữ trạng thái mở/đóng sidebar qua route changes
 - **SPA navigation**: Sidebar + TopNavigation dùng wouter `<Link>` thay `<a href>` — không reload trang
+- **Auth email + password**: Login/Register yêu cầu password (bcrypt verify). Không còn passwordless.
+- **Role system**: `users.role` = `"user"` | `"admin"`. `adminProcedure` middleware bảo vệ các route admin.
+- **Admin Panel** (`/admin`): Dashboard thống kê, quản lý users (đổi role), xử lý reports (xóa video/comment).
 
 ### Còn thiếu / cần làm (ưu tiên cao → thấp)
 
@@ -126,6 +134,17 @@ npm run db:setup && npm run seed && npm run db:triggers
 - ✅ Đăng ký button: TopNavigation hiển thị cả "Đăng ký" + "Đăng nhập" khi chưa login
 - ✅ `getLoginUrl` fallback: `"/"` → `"/login"` khi thiếu env vars. Thêm `getRegisterUrl()`.
 - ✅ `/settings` route: redirect về `/profile`; `/help` route: redirect về `/`
+
+### Đã làm — Session 2026-05-28 (phần 5)
+- ✅ **Login yêu cầu password** (`server/_core/localAuth.ts`): `POST /api/auth/login` giờ nhận `{ email, password, name? }`. Existing user → `bcrypt.compare` verify. User không có password (OAuth/mock cũ) → 401 `NO_PASSWORD`. New user → hash password được nhập (tối thiểu 6 ký tự), không dùng default nữa.
+- ✅ **Login UI với password** (`client/src/pages/Login.tsx`): Form login gồm email + password. Nếu email chưa tồn tại → chuyển sang form đăng ký (tên + password). Error mapping: `INVALID_CREDENTIALS`, `NO_PASSWORD`, `PASSWORD_REQUIRED`.
+- ✅ **Seed data cập nhật** (`server/seed-data.mjs`): 5 mock users dùng `loginMethod: "local"` + password hash `Password123!`. Thêm admin user `admin@example.com` / `Admin123!` với `role: "admin"`.
+- ✅ **Admin DB queries** (`server/db.ts`): thêm `getAdminStats()`, `listAllUsers()`, `countAllUsers()`, `setUserRole()`, `listAllReports()`, `updateReportStatus()`, `adminDeleteVideo()`, `adminDeleteComment()`.
+- ✅ **Admin tRPC router** (`server/routers.ts`): router `admin` với 7 `adminProcedure`: `getStats`, `listUsers`, `setUserRole`, `listReports`, `updateReportStatus`, `deleteVideo`, `deleteComment`. Guard tự block role thay đổi chính mình.
+- ✅ **Admin pages** (`client/src/pages/admin/`): `AdminDashboard.tsx` (stats tổng quan), `AdminUsers.tsx` (bảng users + đổi role), `AdminReports.tsx` (xử lý reports + xóa nội dung). Tất cả có route guard redirect về `/` nếu không phải admin.
+- ✅ **Sidebar admin link** (`client/src/components/Sidebar.tsx`): hiện link "Admin Panel" → `/admin` chỉ khi `user.role === "admin"`.
+- ✅ **Routes** (`client/src/App.tsx`): thêm `/admin`, `/admin/users`, `/admin/reports`.
+- ✅ **Supabase password migration** (`server/set-default-password.mjs`): script one-time set password `1234567Long` cho 5 user cũ chưa có password trong DB. Đã chạy thành công.
 
 ### Đã fix — Session 2026-05-28 (phần 1)
 - ✅ **Database triggers** (4 triggers): `trg_likes_update_video_counts`, `trg_comments_update_video_count`, `trg_subscriptions_update_channel_count`, `trg_playlist_videos_update_count` — loại bỏ race condition từ read-then-write pattern
@@ -166,6 +185,10 @@ npm run seed
 - `JWT_SECRET` — dùng cho ký session token, ví dụ `JWT_SECRET=dev-secret-key-minimum-32chars` (cần thêm để dev login hoạt động)
 
 ## Gotchas
+- **Password auth — user không có password**: User tạo từ OAuth/dev-login/mock cũ có `password = null`. Gọi `POST /api/auth/login` với email đó → 401 `NO_PASSWORD`. Fix: chạy `node server/set-default-password.mjs` để set password mặc định cho các user đó. Không thêm lại passwordless flow.
+- **Seed password vs. Supabase user hiện có**: `npm run seed` tạo user mới với `Password123!`. User cũ trong DB (tạo trước session này) đã được update `1234567Long` qua script migration. Hai nhóm dùng password khác nhau.
+- **Admin role assignment**: `upsertUser()` trong `db.ts` tự set `role = "admin"` nếu `openId === ENV.ownerOpenId`. Muốn thêm admin bằng tay: dùng Admin Panel UI (`/admin/users`) hoặc chạy SQL trực tiếp. KHÔNG hardcode role trong code mới.
+- **Admin guard không redirect ngay**: Các trang admin dùng `useEffect` để redirect — render 1 frame null trước khi redirect. Đây là behavior bình thường với React SPA, không phải bug.
 - **Counter updates đã chuyển sang triggers** — KHÔNG thêm lại manual `likeCount++` / `commentCount++` / `subscriberCount++` trong `db.ts`. Triggers xử lý atomic.
 - **`db:triggers` cần chạy sau `db:setup`** — nếu drop/recreate tables thì triggers mất, phải chạy lại `npm run db:triggers`.
 - **Upload file limit 50MB** — `express.json({ limit: "50mb" })` trong `index.ts`. File video qua tRPC body chỉ hỗ trợ ~35MB thực tế (base64 overhead). File lớn hơn cần multipart.

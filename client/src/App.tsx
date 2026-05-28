@@ -20,6 +20,9 @@ import Notifications from "./pages/Notifications";
 import Playlists from "./pages/Playlists";
 import PlaylistDetail from "./pages/PlaylistDetail";
 import TagPage from "./pages/Tag";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminReports from "./pages/admin/AdminReports";
 
 function Redirect({ to }: { to: string }) {
   const [, navigate] = useLocation();
@@ -47,6 +50,9 @@ function Router() {
       <Route path={"/playlists"} component={Playlists} />
       <Route path={"/playlist/:id"} component={PlaylistDetail} />
       <Route path={"/tag/:name"} component={TagPage} />
+      <Route path={"/admin"} component={AdminDashboard} />
+      <Route path={"/admin/users"} component={AdminUsers} />
+      <Route path={"/admin/reports"} component={AdminReports} />
       <Route path={"/help"}>{() => <Redirect to="/" />}</Route>
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

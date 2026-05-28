@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -10,12 +11,17 @@ if (!DATABASE_URL) {
 
 const sql = postgres(DATABASE_URL);
 
+// Password dùng cho tất cả mock users: Password123!
+// Admin user: admin@example.com / Admin123!
+const MOCK_PASSWORD = "Password123!";
+const ADMIN_PASSWORD = "Admin123!";
+
 const mockUsers = [
-  { openId: "mock_user_1", name: "Minh Tuấn", email: "minhtuan@example.com", loginMethod: "mock" },
-  { openId: "mock_user_2", name: "Hồng Anh", email: "honganh@example.com", loginMethod: "mock" },
-  { openId: "mock_user_3", name: "Quốc Bảo", email: "quocbao@example.com", loginMethod: "mock" },
-  { openId: "mock_user_4", name: "Thúy Linh", email: "thuylinh@example.com", loginMethod: "mock" },
-  { openId: "mock_user_5", name: "Đức Thành", email: "ducthanh@example.com", loginMethod: "mock" },
+  { openId: "mock_user_1", name: "Minh Tuấn", email: "minhtuan@example.com", loginMethod: "local" },
+  { openId: "mock_user_2", name: "Hồng Anh", email: "honganh@example.com", loginMethod: "local" },
+  { openId: "mock_user_3", name: "Quốc Bảo", email: "quocbao@example.com", loginMethod: "local" },
+  { openId: "mock_user_4", name: "Thúy Linh", email: "thuylinh@example.com", loginMethod: "local" },
+  { openId: "mock_user_5", name: "Đức Thành", email: "ducthanh@example.com", loginMethod: "local" },
 ];
 
 const mockChannels = [
@@ -306,19 +312,37 @@ async function seedDatabase() {
   try {
     console.log("🌱 Bắt đầu seed dữ liệu...");
 
+    // Hash passwords
+    console.log("🔑 Tạo password hashes...");
+    const mockPasswordHash = await bcrypt.hash(MOCK_PASSWORD, 10);
+    const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+
+    // Seed admin user
+    console.log("👑 Tạo admin user...");
+    await sql`
+      INSERT INTO users ("openId", name, email, "loginMethod", password, role)
+      VALUES ('admin_user', 'Admin', 'admin@example.com', 'local', ${adminPasswordHash}, 'admin')
+      ON CONFLICT ("openId") DO UPDATE SET
+        name = EXCLUDED.name,
+        email = EXCLUDED.email,
+        password = EXCLUDED.password,
+        role = EXCLUDED.role
+    `;
+    console.log("✓ Admin user: admin@example.com / Admin123!");
+
     // Seed users
     console.log("👤 Tạo users...");
     const userIds = [];
     for (const user of mockUsers) {
       const [result] = await sql`
-        INSERT INTO users ("openId", name, email, "loginMethod")
-        VALUES (${user.openId}, ${user.name}, ${user.email}, ${user.loginMethod})
-        ON CONFLICT ("openId") DO UPDATE SET name = EXCLUDED.name
+        INSERT INTO users ("openId", name, email, "loginMethod", password)
+        VALUES (${user.openId}, ${user.name}, ${user.email}, ${user.loginMethod}, ${mockPasswordHash})
+        ON CONFLICT ("openId") DO UPDATE SET name = EXCLUDED.name, password = EXCLUDED.password
         RETURNING id
       `;
       userIds.push(result.id);
     }
-    console.log(`✓ Đã tạo ${userIds.length} users`);
+    console.log(`✓ Đã tạo ${userIds.length} users (password: ${MOCK_PASSWORD})`);
 
     // Seed channels
     console.log("📺 Tạo channels...");
@@ -434,7 +458,8 @@ async function seedDatabase() {
 
     console.log("\n✅ Seed dữ liệu thành công!");
     console.log(`📊 Tóm tắt:`);
-    console.log(`   - ${userIds.length} users`);
+    console.log(`   - 1 admin user (admin@example.com / Admin123!)`);
+    console.log(`   - ${userIds.length} mock users (password: ${MOCK_PASSWORD})`);
     console.log(`   - ${channelIds.length} channels`);
     console.log(`   - ${videoIds.length} videos`);
     console.log(`   - ${commentCount} comments`);
