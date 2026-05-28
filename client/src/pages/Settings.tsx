@@ -4,13 +4,15 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, Lock, LogOut } from "lucide-react";
+import { User, Lock, LogOut, Moon, Sun } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Settings() {
   const { user, isAuthenticated, logout } = useAuth();
+  const { theme, toggleTheme, switchable } = useTheme();
 
   const [name, setName] = useState(user?.name || "");
   const [bio, setBio] = useState((user as any)?.bio || "");
@@ -179,6 +181,40 @@ export default function Settings() {
             </Button>
           </form>
         </div>
+
+        {/* Giao diện — dark mode */}
+        {switchable && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              {theme === "dark" ? (
+                <Moon className="w-5 h-5 text-primary" />
+              ) : (
+                <Sun className="w-5 h-5 text-primary" />
+              )}
+              <h2 className="text-base font-semibold text-gray-900">Giao diện</h2>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Chế độ tối</p>
+                <p className="text-xs text-gray-500 mt-0.5">Chuyển sang nền tối để dễ xem hơn ban đêm</p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  theme === "dark" ? "bg-primary" : "bg-gray-300"
+                }`}
+                role="switch"
+                aria-checked={theme === "dark"}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    theme === "dark" ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Đăng xuất */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
