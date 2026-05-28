@@ -254,6 +254,24 @@ export const reports = pgTable(
 
 export type Report = typeof reports.$inferSelect;
 
+export const passwordResets = pgTable(
+  "passwordResets",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 64 }).notNull().unique(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    usedAt: timestamp("usedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenUniq: uniqueIndex("passwordResets_token_uniq").on(table.token),
+    userIdIdx: index("passwordResets_userId_idx").on(table.userId),
+  })
+);
+
+export type PasswordReset = typeof passwordResets.$inferSelect;
+
 // ─── Relations (Drizzle query layer) ─────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({

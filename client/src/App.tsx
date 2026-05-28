@@ -26,6 +26,8 @@ import AdminReports from "./pages/admin/AdminReports";
 import Register from "./pages/Register";
 import Help from "./pages/Help";
 import Landing from "./pages/Landing";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import { useAuth } from "./_core/hooks/useAuth";
 
 function RootPage() {
@@ -57,6 +59,8 @@ function Router() {
       <Route path={"/category/:id"} component={Category} />
       <Route path={"/login"} component={Login} />
       <Route path={"/register"} component={Register} />
+      <Route path={"/forgot-password"} component={ForgotPassword} />
+      <Route path={"/reset-password"} component={ResetPassword} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/history"} component={History} />
       <Route path={"/notifications"} component={Notifications} />

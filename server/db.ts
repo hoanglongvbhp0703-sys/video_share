@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
   InsertUser, users, channels, videos, comments, likes, subscriptions, watchHistory,
-  playlists, playlistVideos, tags, videoTags, notifications, reports,
+  playlists, playlistVideos, tags, videoTags, notifications, reports, passwordResets,
   InsertNotification,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -974,4 +974,33 @@ export async function adminDeleteComment(commentId: number) {
   if (!db) throw new Error("Database not available");
   await db.delete(comments).where(eq(comments.id, commentId));
   return { success: true };
+}
+
+// ─── Password reset queries ───────────────────────────────────────────────────
+
+export async function createPasswordReset(userId: number, token: string, expiresAt: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Xóa token cũ chưa dùng của user này trước khi tạo token mới
+  await db.delete(passwordResets).where(and(eq(passwordResets.userId, userId), sql`${passwordResets.usedAt} IS NULL`));
+  await db.insert(passwordResets).values({ userId, token, expiresAt });
+}
+
+export async function getPasswordResetByToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(passwordResets).where(eq(passwordResets.token, token)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function markPasswordResetUsed(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(passwordResets).set({ usedAt: new Date() }).where(eq(passwordResets.id, id));
+}
+
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ password: passwordHash }).where(eq(users.id, userId));
 }

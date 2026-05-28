@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getLoginUrl, getRegisterUrl } from "@/const";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const hasOAuth = !!(
   import.meta.env.VITE_OAUTH_PORTAL_URL && import.meta.env.VITE_APP_ID
@@ -141,9 +141,16 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mật khẩu
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Mật khẩu
+                </label>
+                <Link href="/forgot-password">
+                  <span className="text-xs text-primary hover:underline cursor-pointer">
+                    Quên mật khẩu?
+                  </span>
+                </Link>
+              </div>
               <Input
                 type="password"
                 placeholder="Nhập mật khẩu"
