@@ -25,6 +25,13 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminReports from "./pages/admin/AdminReports";
 import Register from "./pages/Register";
 import Help from "./pages/Help";
+import Landing from "./pages/Landing";
+import { useAuth } from "./_core/hooks/useAuth";
+
+function RootPage() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Home /> : <Landing />;
+}
 
 function Redirect({ to }: { to: string }) {
   const [, navigate] = useLocation();
@@ -36,7 +43,7 @@ function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
+      <Route path={"/"} component={RootPage} />
       <Route path={"/watch/:id"} component={Watch} />
       <Route path={"/upload"} component={Upload} />
       <Route path={"/channel/:id"} component={Channel} />
