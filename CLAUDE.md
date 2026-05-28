@@ -43,7 +43,7 @@ npm run db:triggers  # Áp dụng PostgreSQL triggers lên Supabase (node server
 - `client/src/` — React pages: Home, Watch, Channel, Upload, Search, Trending.
 - `client/src/_core/hooks/useAuth.ts` — Auth hook với `isAuthReady` flag (server đã confirm).
 - `drizzle.config.ts` — Drizzle Kit config (dialect: postgresql).
-- `.env` — DATABASE_URL (Supabase session pooler, port 5432).
+- `.env` — DATABASE_URL (Supabase **transaction pooler, port 6543**).
 
 ### Database Tables
 | Table | Description |
@@ -74,8 +74,8 @@ Các trigger duy trì denormalized counters tự động — atomic, không race
 
 ### Database Connection
 - **Driver**: `postgres` (postgres.js, ESM-compatible)
-- **URL**: Supabase session pooler (port 5432) — supports DDL + runtime queries
-- **Connection**: Lazy singleton in `getDb()`, created on first query
+- **URL**: Supabase **transaction pooler (port 6543)** — không có EMAXCONNSESSION limit
+- **Connection**: Lazy singleton in `getDb()`, `max: 1`, `prepare: false`, `idle_timeout: 10`
 
 ## Supabase Setup
 ```bash
@@ -114,7 +114,7 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Database triggers**: 4 counter triggers — atomic, không race condition
 - **Sidebar state persistent**: localStorage giữ trạng thái mở/đóng sidebar qua route changes
 - **SPA navigation**: Sidebar + TopNavigation dùng wouter `<Link>` thay `<a href>` — không reload trang
-- **Auth email + password**: Login/Register yêu cầu password (bcrypt verify). Không còn passwordless.
+- **Auth email + password**: Login/Register yêu cầu password (bcrypt verify). Email phải đúng định dạng `x@y.z`. Không còn passwordless.
 - **Role system**: `users.role` = `"user"` | `"admin"`. `adminProcedure` middleware bảo vệ các route admin.
 - **Admin Panel** (`/admin`): Dashboard thống kê, quản lý users (đổi role), xử lý reports (xóa video/comment).
 - **Fuzzy search + autocomplete**: Tìm kiếm theo từng token (OR logic), tìm trên title + description + channel name, xếp theo relevance score. Gõ từ khóa ≥ 2 ký tự → dropdown gợi ý.
@@ -122,9 +122,11 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Landing page** (`/`): hiện với user chưa đăng nhập — hero animated, stats bar, features grid, how-it-works, CTA. Dùng IntersectionObserver cho scroll-triggered animations. User đã login thấy Home bình thường.
 - **Bell notification dropdown**: click chuông 🔔 ở TopNavigation mở dropdown inline 10 thông báo gần nhất (mark as read, mark all, link "Xem tất cả"). Link "Thông báo" đã bị xóa khỏi sidebar.
 - **Trang trợ giúp** (`/help`): 8 danh mục FAQ (xem video, đăng video, tài khoản/kênh, thông báo, bình luận, tìm kiếm, báo cáo, cài đặt). Ô tìm kiếm lọc câu hỏi theo realtime.
-- **Dark mode toggle**: Settings → Giao diện → toggle switch. `ThemeProvider switchable=true`, lưu vào localStorage.
-- **Channel name sync**: đổi tên tài khoản (Settings) tự động cập nhật tên kênh theo (`updateChannelByUserId` trong `updateProfile` mutation).
-- **Commenter channel link**: avatar + tên người bình luận trong Watch page là link đến kênh của họ (`getCommentsByVideoId` LEFT JOIN channels để lấy channelId).
+- **Dark mode**: Settings → Giao diện → toggle switch. Global CSS override + semantic tokens trên Layout/TopNav/Sidebar/VideoCard. `ThemeProvider switchable=true`, lưu vào localStorage.
+- **Channel name sync**: đổi tên tài khoản (Settings) tự động cập nhật tên kênh theo. Tài khoản mới dùng tên hiển thị làm tên kênh (không còn `'s Channel`). Settings luôn sync khi save.
+- **Commenter channel link**: avatar + tên người bình luận trong Watch page là link đến kênh của họ.
+- **Subscription guard**: không thể đăng ký kênh của chính mình — chặn cả backend (FORBIDDEN) lẫn frontend (ẩn nút).
+- **Channel avatar + banner upload**: hover vào avatar/banner khi xem kênh của mình → overlay edit. Upload ảnh tối đa 5MB, preview tức thì. `channels.updateImages` tRPC mutation.
 
 ### Còn thiếu / cần làm (ưu tiên cao → thấp)
 
@@ -133,22 +135,22 @@ npm run db:setup && npm run seed && npm run db:triggers
 
 #### 🟡 Cải tiến
 - **Upload video lớn (>35MB)**: cần multipart upload thay vì gửi bytes qua tRPC body (limit 50MB thực tế ~35MB do base64 overhead)
-- **Dark mode styling toàn diện**: toggle đã hoạt động nhưng hầu hết component dùng `bg-white`/`text-gray-*` cứng — cần thêm `dark:` classes trên toàn app để dark mode trông đúng.
+- **Dark mode toàn diện**: Layout/TopNav/Sidebar/VideoCard đã dùng semantic tokens. Một số trang phụ (Profile, Notifications, Playlists, History…) còn dùng `bg-white` cứng — đã có global CSS override trong `index.css` nhưng chưa test hết.
 - **Trang ComponentShowcase**: `client/src/pages/ComponentShowcase.tsx` là trang dev nội bộ, chưa có route — cân nhắc xóa hoặc ẩn
-- **GitHub token bị lộ trong chat**: token `ghp_W7uM6...` đã share trong lịch sử — cần revoke ngay tại GitHub Settings → Developer settings → Personal access tokens
 
-### Đã fix — Session cũ
-- ✅ `tsconfig.json`: xóa `baseUrl` deprecated (TypeScript 6.0 warning)
-- ✅ Windows: thêm `cross-env` cho scripts `dev` và `start` trong `package.json`
-- ✅ `getLoginUrl()` không crash khi thiếu `VITE_OAUTH_PORTAL_URL` / `VITE_APP_ID`
-- ✅ Sidebar toggle: hamburger giờ ẩn/hiện sidebar trên cả desktop + mobile
-- ✅ Login page (`/login`): OAuth mode + dev mode form (không cần Manus OAuth)
-- ✅ Dev mock login: `POST /api/dev-login` (chỉ dev, tắt production). `JWT_SECRET` trong `.env` là bắt buộc.
-- ✅ Đăng ký button: TopNavigation hiển thị cả "Đăng ký" + "Đăng nhập" khi chưa login
-- ✅ `getLoginUrl` fallback: `"/"` → `"/login"` khi thiếu env vars. Thêm `getRegisterUrl()`.
-- ✅ `/settings` route: redirect về `/profile`; `/help` route: redirect về `/`
+### Đã fix — Session 2026-05-29 (session này)
+- ✅ **Email validation** (`Register.tsx`, `localAuth.ts`): regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` — bắt buộc có `@` + domain + `.tld`. Cả frontend lẫn backend đều validate.
+- ✅ **Register error message** (`Register.tsx`, `localAuth.ts`): lỗi server 500 trả `SERVER_ERROR` code thay vì chuỗi "Đăng nhập thất bại". Register page fallback hiện "Đăng ký thất bại" đúng ngữ cảnh.
+- ✅ **Dark mode** (`index.css`, `Layout.tsx`, `TopNavigation.tsx`, `Sidebar.tsx`, `VideoCard.tsx`, `Home.tsx`): global CSS overrides cho `bg-white/gray-*`, semantic tokens cho structural components. Nền thực sự tối khi bật dark mode.
+- ✅ **Channel name mới** (`server/db.ts`): `getOrCreateChannel` dùng `userName` thay `${userName}'s Channel`.
+- ✅ **Channel name sync mọi lúc** (`client/src/pages/Settings.tsx`): `handleUpdateProfile` luôn gửi `name` để `updateChannelByUserId` được gọi kể cả khi tên không đổi.
+- ✅ **Subscription self-subscribe guard** (`server/routers.ts`, `Watch.tsx`, `Channel.tsx`): backend throw FORBIDDEN nếu `channel.userId === ctx.user.id`. Frontend ẩn nút trên Watch và Channel.
+- ✅ **Channel.tsx isMyChannel** (`Channel.tsx`): dùng `displayChannel.userId === user?.id` thay vì `!channelId` — đúng với mọi URL kể cả `/channel/:id`.
+- ✅ **DB connection pool** (`server/db.ts`): `max: 1`, `prepare: false`, `idle_timeout: 10` cho Supabase pooler.
+- ✅ **DATABASE_URL port** (`.env`): đổi từ session pooler `:5432` sang transaction pooler `:6543` — không còn `EMAXCONNSESSION`.
+- ✅ **Channel avatar + banner upload** (`server/db.ts`, `server/routers.ts`, `client/src/pages/Channel.tsx`): `updateChannelImages()` DB fn, `channels.updateImages` tRPC mutation, hover overlay UI với Camera/ImagePlus icon, giới hạn 5MB.
 
-### Đã làm — Session 2026-05-29
+### Đã làm — Session 2026-05-29 (đầu session)
 - ✅ **Trang đăng ký** (`client/src/pages/Register.tsx`): trang `/register` riêng với form email + tên + password + confirm password. TopNavigation nút "Đăng ký" navigate thẳng đến `/register`.
 - ✅ **Fix like bug** (`client/src/pages/Watch.tsx`): thêm `onError` toast cho `toggleLikeMutation`; thêm `utils.videos.getById.invalidate` trong `onSuccess` để `likeCount` cập nhật ngay trên UI.
 - ✅ **Channel name sync** (`server/db.ts`, `server/routers.ts`): thêm `updateChannelByUserId(userId, name)`; `updateProfile` mutation gọi hàm này sau khi cập nhật user → tên kênh tự động đổi theo tên tài khoản.
@@ -157,7 +159,7 @@ npm run db:setup && npm run seed && npm run db:triggers
 - ✅ **Trang trợ giúp** (`client/src/pages/Help.tsx`): 8 danh mục FAQ (accordion), ô tìm kiếm lọc realtime. Route `/help` giờ dẫn đến trang này thay vì redirect về `/`.
 - ✅ **Dark mode toggle** (`client/src/pages/Settings.tsx`, `client/src/App.tsx`): `ThemeProvider switchable={true}`. Section "Giao diện" trong Settings với toggle switch — lưu vào localStorage.
 - ✅ **Landing page** (`client/src/pages/Landing.tsx`, `client/src/App.tsx`): `RootPage` component: nếu chưa login → Landing, đã login → Home. Landing có hero (gradient + blob animations + floating cards), stats bar, features grid, how-it-works, CTA. Scroll-triggered fade-in dùng IntersectionObserver.
-- ✅ **Fix landing page flash** (`client/src/_core/hooks/useAuth.ts`, `client/src/App.tsx`): thêm `isAuthReady = !isPlaceholderData && !isLoading` vào `useAuth`. `RootPage` render `null` cho đến khi `isAuthReady=true` → không còn flash Home→Landing. Đồng thời fix xóa localStorage khi server trả `null` (không chỉ khi có error) để tránh stale cache.
+- ✅ **Fix landing page flash** (`client/src/_core/hooks/useAuth.ts`, `client/src/App.tsx`): thêm `isAuthReady = !isPlaceholderData && !isLoading` vào `useAuth`. `RootPage` render `null` cho đến khi `isAuthReady=true` → không còn flash Home→Landing.
 
 ### Đã làm — Session 2026-05-28 (phần 6)
 - ✅ **Fuzzy search** (`server/db.ts` — `searchVideos`): tách query thành tokens, dùng `ILIKE` OR trên title + description + channel name. Kết quả xếp theo relevance score: title khớp chính xác (300đ) > title chứa cụm từ (150đ) > title chứa từng token (50đ) > channel name (30đ) > description (10đ), sau đó theo viewCount. Commit `0ebb951`.
@@ -210,7 +212,7 @@ npm run dev   # http://localhost:3000
 npm run seed
 ```
 **Env vars cần có trong `.env`:**
-- `DATABASE_URL` — Supabase session pooler (đã có)
+- `DATABASE_URL` — Supabase **transaction pooler port 6543** (không dùng session pooler 5432)
 - `JWT_SECRET` — dùng cho ký session token, ví dụ `JWT_SECRET=dev-secret-key-minimum-32chars` (cần thêm để dev login hoạt động)
 
 ## Gotchas
@@ -225,10 +227,12 @@ npm run seed
 - **`BUILT_IN_FORGE_API_URL` optional** — `storagePut()` tự fallback về local disk nếu thiếu. Production cần set Forge vars.
 - **Auth `placeholderData` từ localStorage** — `useAuth` dùng localStorage làm cache tạm để tránh flash. Session hết hạn → server trả 401 hoặc null → localStorage bị xoá. `isAuthReady` flag = `true` chỉ sau khi server confirm (không còn placeholder) — dùng flag này ở bất kỳ page nào cần tránh flash nội dung sai.
 - **`isAuthReady` trong `useAuth`** — luôn dùng `isAuthReady` khi cần chờ server xác nhận trước khi render UI phụ thuộc vào auth state (ví dụ: conditional rendering Home vs Landing). Dùng `isAuthenticated` thuần chỉ khi chấp nhận placeholder value.
-- **Channel name ≠ User name lúc đầu** — kênh được tạo lần đầu với `${userName}'s Channel`. Sau đó mỗi lần đổi tên account, tên kênh cập nhật thành tên mới (không còn hậu tố `'s Channel`). Nếu muốn đồng bộ lại kênh cũ: update thủ công qua SQL.
+- **Channel name sync**: kênh tạo mới dùng tên tài khoản làm tên kênh trực tiếp. Kênh cũ (tạo trước fix) còn có `'s Channel` suffix → vào Settings → Lưu thay đổi để sync lại.
 - **Notification dropdown vs. Notifications page** — cả hai tồn tại song song. Dropdown (bell) hiện 10 thông báo mới nhất. `/notifications` hiện toàn bộ 50 thông báo. Sidebar không còn link "Thông báo" nữa.
 - **`extractFirstFrame()` trong Upload** — dùng Canvas API client-side, không cần ffmpeg. Video phải load được trong browser. Frame tại `Math.min(1, duration/2)` giây. Nếu video lỗi hoặc format không hỗ trợ, thumbnail bị bỏ qua silently.
 - **Video `duration`** — đã fix session 3: `extractFirstFrame` trả về `{thumbFile, duration}`, `getVideoDuration()` helper cho trường hợp không auto-thumbnail.
+- **Supabase connection pool**: dùng transaction pooler (port 6543), `max: 1`, `prepare: false`. KHÔNG đổi về session pooler (port 5432) — sẽ gây EMAXCONNSESSION khi tsx watch hot-reload tạo nhiều process.
+- **Avatar/banner kênh**: `channels.avatarUrl` + `channels.bannerUrl` đã có trong schema. Upload qua `channels.updateImages` tRPC mutation → `storagePut` → local disk (hoặc Forge/S3 nếu có env). Giới hạn 5MB.
 - Schema was MySQL (`mysqlTable`) — migrated to PostgreSQL (`pgTable`) for Supabase
 - `onDuplicateKeyUpdate` → `onConflictDoUpdate` (PostgreSQL syntax in Drizzle)
 - `updatedAt` columns: chỉ `playlists` có trigger tự cập nhật (khi add/remove video). Các bảng khác update thủ công.
