@@ -137,6 +137,12 @@ export async function getOrCreateChannel(userId: number, userName: string) {
   return created[0];
 }
 
+export async function updateChannelByUserId(userId: number, name: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(channels).set({ name }).where(eq(channels.userId, userId));
+}
+
 export async function getChannelById(channelId: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -398,8 +404,18 @@ export async function getCommentsByVideoId(videoId: number, limit: number = 20, 
   if (!db) return [];
 
   return db
-    .select()
+    .select({
+      id: comments.id,
+      videoId: comments.videoId,
+      userId: comments.userId,
+      content: comments.content,
+      likeCount: comments.likeCount,
+      createdAt: comments.createdAt,
+      updatedAt: comments.updatedAt,
+      channelId: channels.id,
+    })
     .from(comments)
+    .leftJoin(channels, eq(channels.userId, comments.userId))
     .where(eq(comments.videoId, videoId))
     .orderBy(desc(comments.createdAt))
     .limit(limit)

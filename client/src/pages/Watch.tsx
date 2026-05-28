@@ -81,8 +81,13 @@ export default function Watch() {
   const incrementViewMutation = trpc.videos.incrementView.useMutation();
   const recordHistoryMutation = trpc.watchHistory.record.useMutation();
   const createCommentMutation = trpc.comments.create.useMutation();
+  const utils = trpc.useUtils();
   const toggleLikeMutation = trpc.likes.toggle.useMutation({
-    onSuccess: () => refetchLike(),
+    onSuccess: () => {
+      refetchLike();
+      utils.videos.getById.invalidate({ id: videoId });
+    },
+    onError: (err) => toast.error(err.message || "Không thể thực hiện thao tác"),
   });
   const toggleSubscriptionMutation = trpc.subscriptions.toggle.useMutation({
     onSuccess: () => refetchSubscription(),
@@ -293,15 +298,31 @@ export default function Watch() {
                 {comments && comments.length > 0 ? (
                   comments.map((comment) => (
                     <div key={comment.id} className="flex gap-3">
-                      <Avatar className="w-8 h-8 flex-shrink-0">
-                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                          {(userMap[comment.userId] ?? "U").charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      {comment.channelId ? (
+                        <Link href={`/channel/${comment.channelId}`}>
+                          <Avatar className="w-8 h-8 flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer">
+                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                              {(userMap[comment.userId] ?? "U").charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
+                      ) : (
+                        <Avatar className="w-8 h-8 flex-shrink-0">
+                          <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                            {(userMap[comment.userId] ?? "U").charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          {userMap[comment.userId] ?? `Người dùng ${comment.userId}`}
-                        </p>
+                        {comment.channelId ? (
+                          <Link href={`/channel/${comment.channelId}`} className="text-sm font-medium text-gray-900 hover:text-primary transition-colors">
+                            {userMap[comment.userId] ?? `Người dùng ${comment.userId}`}
+                          </Link>
+                        ) : (
+                          <p className="text-sm font-medium text-gray-900">
+                            {userMap[comment.userId] ?? `Người dùng ${comment.userId}`}
+                          </p>
+                        )}
                         <p className="text-xs text-gray-600 mb-1">
                           {formatDistanceToNow(new Date(comment.createdAt), { locale: vi, addSuffix: true })}
                         </p>

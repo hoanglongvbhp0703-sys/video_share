@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import {
   getOrCreateChannel,
   getChannelById,
+  updateChannelByUserId,
   getVideoById,
   getVideosByChannelId,
   getLatestVideos,
@@ -275,6 +276,9 @@ export const appRouter = router({
         if (input.name !== undefined) updates.name = input.name;
         if (input.bio !== undefined) updates.bio = input.bio;
         await upsertUser(updates as Parameters<typeof upsertUser>[0]);
+        if (input.name !== undefined) {
+          await updateChannelByUserId(ctx.user.id, input.name);
+        }
         return { success: true };
       }),
 
