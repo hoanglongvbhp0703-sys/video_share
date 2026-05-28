@@ -142,6 +142,12 @@ export async function getOrCreateChannel(userId: number, userName: string) {
   return created[0];
 }
 
+export async function updateChannelImages(userId: number, updates: { avatarUrl?: string; bannerUrl?: string }) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(channels).set(updates).where(eq(channels.userId, userId));
+}
+
 export async function updateChannelByUserId(userId: number, name: string) {
   const db = await getDb();
   if (!db) return;

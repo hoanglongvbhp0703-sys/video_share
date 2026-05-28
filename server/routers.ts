@@ -57,6 +57,7 @@ import {
   updateReportStatus,
   adminDeleteVideo,
   adminDeleteComment,
+  updateChannelImages,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -217,6 +218,21 @@ export const appRouter = router({
 
     getMyChannel: protectedProcedure
       .query(async ({ ctx }) => getOrCreateChannel(ctx.user.id, ctx.user.name || "User")),
+
+    updateImages: protectedProcedure
+      .input(z.object({
+        type: z.enum(["avatar", "banner"]),
+        fileData: z.instanceof(Uint8Array),
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const key = `channels/${ctx.user.id}/${input.type}/${input.fileName}`;
+        const { url } = await storagePut(key, input.fileData, input.mimeType);
+        const updates = input.type === "avatar" ? { avatarUrl: url } : { bannerUrl: url };
+        await updateChannelImages(ctx.user.id, updates);
+        return { url };
+      }),
 
     getVideos: publicProcedure
       .input(z.object({ channelId: z.number(), limit: z.number().default(20), offset: z.number().default(0) }))
