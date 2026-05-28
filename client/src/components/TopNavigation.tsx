@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Search, Upload, Menu, User, Tv, History, Settings, LogOut, Bell } from "lucide-react";
-import { getLoginUrl, getRegisterUrl } from "@/const";
+import { getLoginUrl } from "@/const";
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -217,16 +217,12 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
-              <a href={getRegisterUrl()}>
-                <Button variant="outline" size="sm">
-                  Đăng ký
-                </Button>
-              </a>
-              <a href={getLoginUrl()}>
-                <Button variant="default" size="sm">
-                  Đăng nhập
-                </Button>
-              </a>
+              <Button variant="outline" size="sm" onClick={() => navigate("/register")}>
+                Đăng ký
+              </Button>
+              <Button variant="default" size="sm" onClick={() => navigate("/login")}>
+                Đăng nhập
+              </Button>
             </div>
           )}
         </div>

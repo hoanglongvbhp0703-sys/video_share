@@ -23,6 +23,7 @@ import TagPage from "./pages/Tag";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminReports from "./pages/admin/AdminReports";
+import Register from "./pages/Register";
 
 function Redirect({ to }: { to: string }) {
   const [, navigate] = useLocation();
@@ -44,6 +45,7 @@ function Router() {
       <Route path={"/profile"} component={Profile} />
       <Route path={"/category/:id"} component={Category} />
       <Route path={"/login"} component={Login} />
+      <Route path={"/register"} component={Register} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/history"} component={History} />
       <Route path={"/notifications"} component={Notifications} />
