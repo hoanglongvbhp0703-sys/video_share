@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Search, Upload, Menu, User, Tv, History, Settings, LogOut, Bell } from "lucide-react";
 import { getLoginUrl, getRegisterUrl } from "@/const";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 
@@ -23,7 +23,32 @@ interface TopNavigationProps {
 export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNavigationProps) {
   const { user, logout, isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [, navigate] = useLocation();
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Debounce 300ms trước khi gọi API suggest
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Ẩn suggestions khi click ra ngoài
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const { data: suggestions } = trpc.videos.suggest.useQuery(
+    { query: debouncedQuery },
+    { enabled: debouncedQuery.trim().length >= 2 }
+  );
 
   const { data: unreadCount } = trpc.notifications.getUnreadCount.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -33,9 +58,17 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setShowSuggestions(false);
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       onSearchChange?.(searchQuery);
     }
+  };
+
+  const handleSelectSuggestion = (title: string) => {
+    setSearchQuery(title);
+    setShowSuggestions(false);
+    navigate(`/search?q=${encodeURIComponent(title)}`);
+    onSearchChange?.(title);
   };
 
   return (
@@ -59,13 +92,14 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
         </div>
 
         {/* Center: Search Bar */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-md mx-4 hidden sm:flex">
-          <div className="flex w-full">
+        <div ref={searchContainerRef} className="flex-1 max-w-md mx-4 hidden sm:flex relative">
+          <form onSubmit={handleSearch} className="flex w-full">
             <Input
               type="text"
               placeholder="Tìm kiếm video..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
               className="rounded-l-full border-gray-300 focus:border-primary"
             />
             <button
@@ -74,8 +108,28 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
             >
               <Search className="w-5 h-5 text-gray-600" />
             </button>
-          </div>
-        </form>
+          </form>
+          {showSuggestions && suggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+              {suggestions.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(s.title); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left transition-colors"
+                >
+                  <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-800 truncate">{s.title}</p>
+                    {s.channelName && (
+                      <p className="text-xs text-gray-400 truncate">{s.channelName}</p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Right: Upload and User Menu */}
         <div className="flex items-center gap-2">
@@ -179,23 +233,41 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
       </div>
 
       {/* Mobile Search Bar */}
-      <form onSubmit={handleSearch} className="sm:hidden px-4 pb-3">
-        <div className="flex w-full">
-          <Input
-            type="text"
-            placeholder="Tìm kiếm..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="rounded-l-full border-gray-300 focus:border-primary text-sm"
-          />
-          <button
-            type="submit"
-            className="bg-gray-100 hover:bg-gray-200 px-3 rounded-r-full transition-colors border border-l-0 border-gray-300"
-          >
-            <Search className="w-4 h-4 text-gray-600" />
-          </button>
-        </div>
-      </form>
+      <div className="sm:hidden px-4 pb-3 relative">
+        <form onSubmit={handleSearch}>
+          <div className="flex w-full">
+            <Input
+              type="text"
+              placeholder="Tìm kiếm..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              className="rounded-l-full border-gray-300 focus:border-primary text-sm"
+            />
+            <button
+              type="submit"
+              className="bg-gray-100 hover:bg-gray-200 px-3 rounded-r-full transition-colors border border-l-0 border-gray-300"
+            >
+              <Search className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+        </form>
+        {showSuggestions && suggestions && suggestions.length > 0 && (
+          <div className="absolute left-4 right-4 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+            {suggestions.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(s.title); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left transition-colors"
+              >
+                <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <p className="text-sm text-gray-800 truncate">{s.title}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </nav>
   );
 }

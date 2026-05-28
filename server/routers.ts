@@ -12,6 +12,7 @@ import {
   getLatestVideos,
   getTrendingVideos,
   searchVideos,
+  suggestVideos,
   getVideosByCategory,
   incrementVideoViewCount,
   getCommentsByVideoId,
@@ -163,6 +164,10 @@ export const appRouter = router({
     search: publicProcedure
       .input(z.object({ query: z.string(), limit: z.number().default(20), offset: z.number().default(0) }))
       .query(({ input }) => searchVideos(input.query, input.limit, input.offset)),
+
+    suggest: publicProcedure
+      .input(z.object({ query: z.string(), limit: z.number().default(8) }))
+      .query(({ input }) => suggestVideos(input.query, input.limit)),
 
     getTrending: publicProcedure
       .input(z.object({ limit: z.number().default(20), offset: z.number().default(0) }))

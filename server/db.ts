@@ -1,4 +1,4 @@
-import { eq, and, desc, like, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, like, ilike, or, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
@@ -263,6 +263,31 @@ export async function searchVideos(query: string, limit: number = 20, offset: nu
   const db = await getDb();
   if (!db) return [];
 
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  // Tách thành các từ riêng lẻ, tối đa 8 token
+  const tokens = trimmed.split(/\s+/).filter(Boolean).slice(0, 8);
+
+  // Điều kiện OR: bất kỳ token nào xuất hiện trong title, description, hoặc tên channel
+  const tokenConditions = tokens.flatMap(token => [
+    ilike(videos.title, `%${token}%`),
+    ilike(videos.description, `%${token}%`),
+    ilike(channels.name, `%${token}%`),
+  ]);
+
+  // Điểm liên quan: title khớp đầy đủ > title chứa cụm từ > title chứa từng token > channel > description
+  const scoreParts = [
+    sql<number>`CASE WHEN LOWER(${videos.title}) = LOWER(${trimmed}) THEN 300 ELSE 0 END`,
+    sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${trimmed}%`} THEN 150 ELSE 0 END`,
+    ...tokens.flatMap(token => [
+      sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${token}%`} THEN 50 ELSE 0 END`,
+      sql<number>`CASE WHEN ${channels.name} ILIKE ${`%${token}%`} THEN 30 ELSE 0 END`,
+      sql<number>`CASE WHEN ${videos.description} ILIKE ${`%${token}%`} THEN 10 ELSE 0 END`,
+    ]),
+  ];
+  const score = sql<number>`(${sql.join(scoreParts, sql` + `)})`;
+
   return db
     .select({
       id: videos.id,
@@ -284,15 +309,41 @@ export async function searchVideos(query: string, limit: number = 20, offset: nu
     })
     .from(videos)
     .leftJoin(channels, eq(videos.channelId, channels.id))
-    .where(
-      and(
-        eq(videos.isPublished, true),
-        like(videos.title, `%${query}%`)
-      )
-    )
-    .orderBy(desc(videos.createdAt))
+    .where(and(eq(videos.isPublished, true), or(...tokenConditions)))
+    .orderBy(desc(score), desc(videos.viewCount))
     .limit(limit)
     .offset(offset);
+}
+
+export async function suggestVideos(query: string, limit: number = 8) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const tokens = trimmed.split(/\s+/).filter(Boolean).slice(0, 5);
+
+  const tokenConditions = tokens.flatMap(token => [
+    ilike(videos.title, `%${token}%`),
+    ilike(channels.name, `%${token}%`),
+  ]);
+
+  const scoreParts = [
+    sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${trimmed}%`} THEN 100 ELSE 0 END`,
+    ...tokens.map(token =>
+      sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${token}%`} THEN 50 ELSE 0 END`
+    ),
+  ];
+  const score = sql<number>`(${sql.join(scoreParts, sql` + `)})`;
+
+  return db
+    .select({ id: videos.id, title: videos.title, channelName: channels.name })
+    .from(videos)
+    .leftJoin(channels, eq(videos.channelId, channels.id))
+    .where(and(eq(videos.isPublished, true), or(...tokenConditions)))
+    .orderBy(desc(score), desc(videos.viewCount))
+    .limit(limit);
 }
 
 export async function getVideosByCategory(category: string, limit: number = 20, offset: number = 0) {
