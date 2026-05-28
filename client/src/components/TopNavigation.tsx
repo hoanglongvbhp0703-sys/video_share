@@ -9,11 +9,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Upload, Menu, User, Tv, History, Settings, LogOut, Bell } from "lucide-react";
+import { Search, Upload, Menu, User, Tv, History, Settings, LogOut, Bell, BellOff, Video, Users, MessageSquare, Info, CheckCheck } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface TopNavigationProps {
   onSearchChange?: (query: string) => void;
@@ -50,10 +53,53 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
     { enabled: debouncedQuery.trim().length >= 2 }
   );
 
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
   const { data: unreadCount } = trpc.notifications.getUnreadCount.useQuery(undefined, {
     enabled: isAuthenticated,
     refetchInterval: 60_000,
   });
+
+  const { data: notifications } = trpc.notifications.list.useQuery(
+    { limit: 10, offset: 0 },
+    { enabled: isAuthenticated && showNotifications }
+  );
+
+  const utils = trpc.useUtils();
+
+  const markAllAsRead = trpc.notifications.markAllAsRead.useMutation({
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.getUnreadCount.invalidate();
+    },
+  });
+
+  const markAsRead = trpc.notifications.markAsRead.useMutation({
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.getUnreadCount.invalidate();
+    },
+  });
+
+  const notifTypeIcon: Record<string, React.ReactNode> = {
+    new_video: <Video className="w-3.5 h-3.5 text-primary" />,
+    new_subscriber: <Users className="w-3.5 h-3.5 text-green-500" />,
+    comment: <MessageSquare className="w-3.5 h-3.5 text-blue-500" />,
+    reply: <MessageSquare className="w-3.5 h-3.5 text-purple-500" />,
+    system: <Info className="w-3.5 h-3.5 text-gray-400" />,
+  };
+
+  // Ẩn notification dropdown khi click ra ngoài
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,17 +190,88 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                 <Upload className="w-5 h-5" />
                 <span className="hidden sm:inline">Upload</span>
               </Button>
-              <button
-                onClick={() => navigate("/notifications")}
-                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <Bell className="w-5 h-5 text-gray-700" />
-                {(unreadCount ?? 0) > 0 && (
-                  <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
-                    {(unreadCount ?? 0) > 99 ? "99+" : unreadCount}
-                  </span>
+              {/* Bell notification dropdown */}
+              <div ref={notifRef} className="relative">
+                <button
+                  onClick={() => setShowNotifications((v) => !v)}
+                  className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="Thông báo"
+                >
+                  <Bell className="w-5 h-5 text-gray-700" />
+                  {(unreadCount ?? 0) > 0 && (
+                    <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      {(unreadCount ?? 0) > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-4 h-4 text-gray-700" />
+                        <span className="font-semibold text-sm text-gray-900">Thông báo</span>
+                        {(unreadCount ?? 0) > 0 && (
+                          <span className="bg-primary text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      {(unreadCount ?? 0) > 0 && (
+                        <button
+                          onClick={() => markAllAsRead.mutate()}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5" />
+                          Đọc hết
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-96 overflow-y-auto">
+                      {!notifications || notifications.length === 0 ? (
+                        <div className="flex flex-col items-center py-10 gap-2">
+                          <BellOff className="w-8 h-8 text-gray-200" />
+                          <p className="text-sm text-gray-400">Chưa có thông báo</p>
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => !n.isRead && markAsRead.mutate({ id: n.id })}
+                            className={cn(
+                              "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50",
+                              !n.isRead && "bg-primary/5"
+                            )}
+                          >
+                            <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              {notifTypeIcon[n.type] ?? <Info className="w-3.5 h-3.5 text-gray-400" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={cn("text-xs leading-relaxed", !n.isRead ? "font-medium text-gray-900" : "text-gray-600")}>
+                                {n.message}
+                              </p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: vi })}
+                              </p>
+                            </div>
+                            {!n.isRead && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />}
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="border-t border-gray-100 px-4 py-2">
+                      <button
+                        onClick={() => { setShowNotifications(false); navigate("/notifications"); }}
+                        className="w-full text-xs text-primary hover:text-primary/80 transition-colors py-1"
+                      >
+                        Xem tất cả thông báo →
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </button>
+              </div>
             </>
           )}
 

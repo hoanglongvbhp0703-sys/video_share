@@ -1,4 +1,4 @@
-import { Home, Flame, Zap, Music, Gamepad2, Film, Tv, Trophy, Newspaper, Settings, HelpCircle, X, History, Bell, ListVideo, ShieldCheck } from "lucide-react";
+import { Home, Flame, Zap, Music, Gamepad2, Film, Tv, Trophy, Newspaper, Settings, HelpCircle, X, History, ListVideo, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -94,7 +94,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </div>
                 <NavLink href="/history" icon={History} label="Lịch sử xem" />
                 <NavLink href="/playlists" icon={ListVideo} label="Danh sách phát" />
-                <NavLink href="/notifications" icon={Bell} label="Thông báo" />
                 {user?.role === "admin" && (
                   <>
                     <div className="pt-2 pb-1 px-3">
