@@ -24,6 +24,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminReports from "./pages/admin/AdminReports";
 import Register from "./pages/Register";
+import Help from "./pages/Help";
 
 function Redirect({ to }: { to: string }) {
   const [, navigate] = useLocation();
@@ -55,7 +56,7 @@ function Router() {
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/users"} component={AdminUsers} />
       <Route path={"/admin/reports"} component={AdminReports} />
-      <Route path={"/help"}>{() => <Redirect to="/" />}</Route>
+      <Route path={"/help"} component={Help} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
