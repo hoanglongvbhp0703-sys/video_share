@@ -10,7 +10,6 @@ if (!DATABASE_URL) {
 
 const sql = postgres(DATABASE_URL);
 
-// 5 mock users tương ứng với 5 channels
 const mockUsers = [
   { openId: "mock_user_1", name: "Minh Tuấn", email: "minhtuan@example.com", loginMethod: "mock" },
   { openId: "mock_user_2", name: "Hồng Anh", email: "honganh@example.com", loginMethod: "mock" },
@@ -19,102 +18,295 @@ const mockUsers = [
   { openId: "mock_user_5", name: "Đức Thành", email: "ducthanh@example.com", loginMethod: "mock" },
 ];
 
-// Mock data generators
 const mockChannels = [
   {
-    userId: 1, // placeholder, sẽ được gán sau khi insert users
-    name: "Tech Channel",
-    description: "Công nghệ, lập trình, AI",
-    avatarUrl: "/manus-storage/avatar-1.jpg",
-    subscriberCount: 15420,
+    name: "Tech Việt",
+    description: "Tin tức công nghệ, AI, lập trình và review thiết bị mới nhất",
+    avatarUrl: "https://picsum.photos/seed/channel-tech/80/80",
+    subscriberCount: 28450,
   },
   {
-    userId: 2,
-    name: "Gaming Pro",
-    description: "Gaming, esports, reviews",
-    avatarUrl: "/manus-storage/avatar-2.jpg",
-    subscriberCount: 8950,
+    name: "Gaming Pro VN",
+    description: "Gaming, esports, hướng dẫn game và review phụ kiện gaming",
+    avatarUrl: "https://picsum.photos/seed/channel-gaming/80/80",
+    subscriberCount: 15920,
   },
   {
-    userId: 3,
     name: "Music Vibes",
-    description: "Nhạc, cover, beat making",
-    avatarUrl: "/manus-storage/avatar-3.jpg",
-    subscriberCount: 12340,
+    description: "Nhạc chill, cover acoustic, beat making và nhạc lo-fi",
+    avatarUrl: "https://picsum.photos/seed/channel-music/80/80",
+    subscriberCount: 19340,
   },
   {
-    userId: 4,
-    name: "Travel Adventures",
-    description: "Du lịch, khám phá thế giới",
-    avatarUrl: "/manus-storage/avatar-4.jpg",
-    subscriberCount: 9870,
+    name: "Movie Review VN",
+    description: "Review phim, phân tích series và top phim hay mỗi tuần",
+    avatarUrl: "https://picsum.photos/seed/channel-movies/80/80",
+    subscriberCount: 12780,
   },
   {
-    userId: 5,
-    name: "Cooking Master",
-    description: "Nấu ăn, công thức, mẹo bếp",
-    avatarUrl: "/manus-storage/avatar-5.jpg",
-    subscriberCount: 11200,
+    name: "Lifestyle VN",
+    description: "Thể thao, ăn uống, du lịch và cuộc sống khỏe mạnh",
+    avatarUrl: "https://picsum.photos/seed/channel-lifestyle/80/80",
+    subscriberCount: 22100,
   },
 ];
 
-// category theo channel index (0-4):  news, gaming, music, news, movies
-const CHANNEL_CATEGORIES = ["news", "gaming", "music", "news", "movies"];
+// channelIndex: 0=Tech, 1=Gaming, 2=Music, 3=Movies, 4=Lifestyle
+const videoData = [
+  // --- NEWS (4 videos) ---
+  {
+    channelIndex: 0,
+    category: "news",
+    title: "ChatGPT vs Claude 2026: AI nào thông minh hơn?",
+    description: "So sánh chi tiết hai mô hình AI hàng đầu thế giới trong năm 2026. Test thực tế qua lập trình, viết lách, phân tích dữ liệu và sáng tạo nội dung. Kết quả sẽ khiến bạn bất ngờ.",
+    thumbnailUrl: "https://picsum.photos/seed/ai-battle/640/360",
+    duration: 1842,
+    viewCount: 87430,
+    likeCount: 4210,
+    dislikeCount: 185,
+  },
+  {
+    channelIndex: 0,
+    category: "news",
+    title: "Review MacBook Pro M4: Có đáng mua không?",
+    description: "Đánh giá toàn diện MacBook Pro M4 sau 30 ngày sử dụng. Hiệu năng, pin, màn hình, và liệu con chip M4 có thực sự vượt trội so với M3? Dành cho cả developer lẫn creative.",
+    thumbnailUrl: "https://picsum.photos/seed/macbook-review/640/360",
+    duration: 2134,
+    viewCount: 63210,
+    likeCount: 3087,
+    dislikeCount: 142,
+  },
+  {
+    channelIndex: 0,
+    category: "news",
+    title: "Lập trình TypeScript 5.0 — Tất cả tính năng mới",
+    description: "Hướng dẫn đầy đủ về TypeScript 5.0: decorators mới, satisfies operator, const type parameters và nhiều hơn nữa. Có demo thực tế từng tính năng với ví dụ dễ hiểu.",
+    thumbnailUrl: "https://picsum.photos/seed/typescript-code/640/360",
+    duration: 3256,
+    viewCount: 41870,
+    likeCount: 2341,
+    dislikeCount: 67,
+  },
+  {
+    channelIndex: 0,
+    category: "news",
+    title: "Học tiếng Anh qua phim — Phương pháp hiệu quả nhất 2026",
+    description: "Kỹ thuật shadowing và extensive listening qua phim ảnh, series. Hướng dẫn chọn phim phù hợp, cách note vocab và luyện phát âm chuẩn như người bản xứ không cần đến lớp.",
+    thumbnailUrl: "https://picsum.photos/seed/english-learning/640/360",
+    duration: 1678,
+    viewCount: 52340,
+    likeCount: 3120,
+    dislikeCount: 98,
+  },
 
-const videoTitles = [
-  "Hướng dẫn React 19 - Tất cả những gì bạn cần biết",
-  "Top 10 game hay nhất năm 2026",
-  "Cách làm bánh mì tại nhà đơn giản",
-  "Du lịch Bali - Những điểm đến tuyệt vời",
-  "Sáng tác nhạc với AI - Hướng dẫn chi tiết",
-  "Lập trình TypeScript từ cơ bản",
-  "Ăn gì khi giảm cân - Thực đơn 7 ngày",
-  "Khám phá Tokyo - Vlog du lịch",
-  "Tạo website với Tailwind CSS",
-  "Nấu cơm tấm Sài Gòn chuẩn vị",
-  "Chơi Elden Ring - Boss guide",
-  "Học tiếng Anh qua bài hát",
-  "Làm bánh cheesecake ngon",
-  "Phỏng vấn startup founder",
-  "Yoga cho người bận rộn",
-  "Xây dựng API REST với Node.js",
-  "Vlog: Một ngày của lập trình viên",
-  "Nấu mì Ý authentic",
-  "Chơi piano - Bài hát nổi tiếng",
-  "Kinh doanh online từ A-Z",
-];
+  // --- GAMING (3 videos) ---
+  {
+    channelIndex: 1,
+    category: "gaming",
+    title: "Top 10 Game AAA hay nhất 2026 — Xếp hạng chi tiết",
+    description: "Điểm mặt 10 tựa game bom tấn hay nhất nửa đầu 2026. Từ RPG đến FPS, mỗi game được đánh giá về gameplay, đồ họa, story và giá trị đồng tiền. Bạn đã chơi hết chưa?",
+    thumbnailUrl: "https://picsum.photos/seed/gaming-top10/640/360",
+    duration: 2890,
+    viewCount: 124500,
+    likeCount: 7823,
+    dislikeCount: 312,
+  },
+  {
+    channelIndex: 1,
+    category: "gaming",
+    title: "Elden Ring DLC — Hướng dẫn đánh boss khó nhất",
+    description: "Shadow of the Erdtree: Hướng dẫn chi tiết cách đánh Promised Consort Radahn và Messmer the Impaler. Build được khuyên dùng, phase transitions và những lỗi thường gặp cần tránh.",
+    thumbnailUrl: "https://picsum.photos/seed/elden-ring/640/360",
+    duration: 1534,
+    viewCount: 98760,
+    likeCount: 5432,
+    dislikeCount: 201,
+  },
+  {
+    channelIndex: 1,
+    category: "gaming",
+    title: "Minecraft 1.22 — Build thành phố siêu hoành tráng từ đầu",
+    description: "Timelapse và hướng dẫn build thành phố hiện đại với 50+ tòa nhà, hệ thống metro ngầm, sân bay và công viên. Resource pack đẹp, không cần mod phức tạp.",
+    thumbnailUrl: "https://picsum.photos/seed/minecraft-city/640/360",
+    duration: 2245,
+    viewCount: 76430,
+    likeCount: 4890,
+    dislikeCount: 156,
+  },
 
-const videoDescriptions = [
-  "Trong video này, tôi sẽ hướng dẫn bạn tất cả những tính năng mới của React 19, bao gồm Server Components, Actions, và nhiều hơn nữa.",
-  "Danh sách những game hay nhất được phát hành năm 2026. Từ AAA titles đến indie games độc lập.",
-  "Công thức làm bánh mì tại nhà đơn giản, ngon và tiết kiệm. Chỉ cần 5 nguyên liệu cơ bản.",
-  "Khám phá những điểm đến tuyệt vời tại Bali. Từ bãi biển đẹp đến các đền thờ cổ kính.",
-  "Hướng dẫn cách sáng tác nhạc bằng AI. Công cụ, kỹ thuật và tips từ chuyên gia.",
-  "Khóa học TypeScript từ cơ bản đến nâng cao. Phù hợp cho người mới bắt đầu.",
-  "Thực đơn giảm cân 7 ngày với các món ăn ngon, lành mạnh và dễ nấu.",
-  "Vlog du lịch Tokyo - Khám phá các quán ăn, điểm tham quan và trải nghiệm văn hóa.",
-  "Hướng dẫn tạo website đẹp với Tailwind CSS. Responsive design, animation, và component.",
-  "Công thức làm cơm tấm Sài Gòn chuẩn vị nhất. Bí quyết từ những người nấu chuyên nghiệp.",
+  // --- MUSIC (3 videos) ---
+  {
+    channelIndex: 2,
+    category: "music",
+    title: "Nhạc Lo-fi Chill Học Bài — 2 Giờ Không Quảng Cáo",
+    description: "Playlist lo-fi hip hop được chọn lọc kỹ càng cho việc học bài, làm việc và thư giãn. Không quảng cáo ngắt quãng, âm thanh lossless chất lượng cao. Bgm nhẹ nhàng không làm phân tâm.",
+    thumbnailUrl: "https://picsum.photos/seed/lofi-music/640/360",
+    duration: 7234,
+    viewCount: 234560,
+    likeCount: 12340,
+    dislikeCount: 234,
+  },
+  {
+    channelIndex: 2,
+    category: "music",
+    title: "Cover 'Đừng Làm Trái Tim Anh Đau' — Acoustic Guitar",
+    description: "Cover acoustic bài hit của Sơn Tùng M-TP với phong cách nhẹ nhàng, tập trung vào giai điệu và cảm xúc. Chỉ guitar và giọng hát, không auto-tune. Chord và tab guitar ở phần mô tả.",
+    thumbnailUrl: "https://picsum.photos/seed/acoustic-guitar/640/360",
+    duration: 287,
+    viewCount: 189340,
+    likeCount: 9870,
+    dislikeCount: 145,
+  },
+  {
+    channelIndex: 2,
+    category: "music",
+    title: "Sáng Tác Beat Trap Với FL Studio Từ Con Số 0",
+    description: "Tutorial làm beat trap từ đầu hoàn toàn trong FL Studio 21. 808 bass, hi-hat patterns, melody leads và mixing cơ bản. Sau video bạn có thể tự tạo beat hoàn chỉnh trong 30 phút.",
+    thumbnailUrl: "https://picsum.photos/seed/music-studio/640/360",
+    duration: 3412,
+    viewCount: 45670,
+    likeCount: 2890,
+    dislikeCount: 78,
+  },
+
+  // --- MOVIES (3 videos) ---
+  {
+    channelIndex: 3,
+    category: "movies",
+    title: "Review Dune Part 3 — Có Xứng Đáng Oscar Không?",
+    description: "Đánh giá chi tiết Dune: Messiah (2026) — phần cuối của trilogy. Diễn xuất, hiệu ứng hình ảnh, cốt truyện so với nguyên tác và vị trí của nó trong lịch sử điện ảnh sci-fi. SPOILER nhẹ.",
+    thumbnailUrl: "https://picsum.photos/seed/dune-movie/640/360",
+    duration: 1823,
+    viewCount: 67890,
+    likeCount: 4123,
+    dislikeCount: 234,
+  },
+  {
+    channelIndex: 3,
+    category: "movies",
+    title: "Top 15 Phim Hành Động Hay Nhất 2026 — Không Bỏ Được",
+    description: "Xếp hạng 15 phim action bom tấn và indie đáng xem nhất 2026. Từ siêu anh hùng đến thriller căng thẳng. Mỗi phim có điểm chất lượng, lý do nên xem và rating của giới phê bình.",
+    thumbnailUrl: "https://picsum.photos/seed/action-movies/640/360",
+    duration: 2156,
+    viewCount: 93210,
+    likeCount: 5670,
+    dislikeCount: 189,
+  },
+  {
+    channelIndex: 3,
+    category: "movies",
+    title: "Phân Tích Kết Thúc The Last of Us Season 3 — Ý Nghĩa Thật Sự",
+    description: "Deep dive vào tập cuối mùa 3 của The Last of Us. Tại sao ending này hoàn hảo cho toàn bộ series, những chi tiết ẩn từ mùa 1 và lý giải quyết định của nhân vật chính. Full spoiler.",
+    thumbnailUrl: "https://picsum.photos/seed/tv-series/640/360",
+    duration: 2567,
+    viewCount: 78450,
+    likeCount: 4980,
+    dislikeCount: 312,
+  },
+
+  // --- SPORTS (3 videos) ---
+  {
+    channelIndex: 4,
+    category: "sports",
+    title: "Chạy Bộ 10km Mỗi Ngày — Kết Quả Thật Sau 30 Ngày",
+    description: "Thử thách chạy bộ 10km liên tục 30 ngày: thay đổi về thể trọng, sức bền, sức khỏe tổng thể và tinh thần. Honest review với số liệu thực tế, những ngày khó khăn và cách vượt qua.",
+    thumbnailUrl: "https://picsum.photos/seed/running-sport/640/360",
+    duration: 1234,
+    viewCount: 43210,
+    likeCount: 2876,
+    dislikeCount: 67,
+  },
+  {
+    channelIndex: 4,
+    category: "sports",
+    title: "Yoga Buổi Sáng 20 Phút — Bắt Đầu Ngày Mới Tràn Đầy Năng Lượng",
+    description: "Bài tập yoga 20 phút dành cho người mới bắt đầu. Các tư thế cơ bản giúp kéo căng cơ thể, cải thiện linh hoạt và tập trung tâm trí. Không cần kinh nghiệm yoga, chỉ cần thảm tập.",
+    thumbnailUrl: "https://picsum.photos/seed/yoga-morning/640/360",
+    duration: 1198,
+    viewCount: 67890,
+    likeCount: 4123,
+    dislikeCount: 89,
+  },
+  {
+    channelIndex: 4,
+    category: "sports",
+    title: "Gym Tại Nhà — Bài Tập Full Body Không Cần Dụng Cụ",
+    description: "Workout calisthenics 45 phút tập toàn thân tại nhà: push-up variations, squat, plank, dip và cardio HIIT. Phù hợp cả người mới lẫn trung cấp. Có phần warm-up và cool-down đầy đủ.",
+    thumbnailUrl: "https://picsum.photos/seed/home-workout/640/360",
+    duration: 2734,
+    viewCount: 54320,
+    likeCount: 3456,
+    dislikeCount: 112,
+  },
+
+  // --- LIVE (4 videos) ---
+  {
+    channelIndex: 4,
+    category: "live",
+    title: "Nấu Bún Bò Huế Chuẩn Vị Miền Trung — Công Thức Gia Truyền",
+    description: "Hướng dẫn nấu bún bò Huế đúng cách với nước dùng đậm đà, thịt mềm và các loại chả cần thiết. Công thức từ người Huế chính gốc. Bí quyết để nước dùng không bị đục và thơm mùi sả.",
+    thumbnailUrl: "https://picsum.photos/seed/vietnamese-food/640/360",
+    duration: 1876,
+    viewCount: 87650,
+    likeCount: 5670,
+    dislikeCount: 123,
+  },
+  {
+    channelIndex: 4,
+    category: "live",
+    title: "Làm Bánh Mì Việt Nam Giòn Thơm Tại Nhà — Không Cần Lò Nướng Xịn",
+    description: "Công thức làm vỏ bánh mì Việt Nam giòn xốp với lớp vỏ mỏng và ruột nhẹ. Kỹ thuật nhào bột đúng cách, thời gian ủ và nhiệt độ nướng tối ưu. Cả nhà ai cũng làm được.",
+    thumbnailUrl: "https://picsum.photos/seed/bread-baking/640/360",
+    duration: 2345,
+    viewCount: 112340,
+    likeCount: 6780,
+    dislikeCount: 156,
+  },
+  {
+    channelIndex: 4,
+    category: "live",
+    title: "Du Lịch Đà Nẵng 3 Ngày 2 Đêm — Full Vlog & Chi Phí Thực Tế",
+    description: "Vlog du lịch Đà Nẵng tự túc: Bà Nà Hills, Cầu Rồng, Mỹ Khê, Hội An 1 ngày. Chi phí thực tế ăn uống, di chuyển, khách sạn. Tips tiết kiệm và những nơi ít người biết.",
+    thumbnailUrl: "https://picsum.photos/seed/danang-travel/640/360",
+    duration: 3123,
+    viewCount: 98760,
+    likeCount: 5890,
+    dislikeCount: 198,
+  },
+  {
+    channelIndex: 4,
+    category: "live",
+    title: "Khám Phá Chợ Đêm Hà Nội — Street Food Tour Phố Cổ",
+    description: "Tour ẩm thực đường phố Hà Nội lúc nửa đêm: bún ốc nguội, bánh cuốn Thanh Trì, chả cá Lã Vọng, phở bò đêm khuya. Review thực tế giá cả và chất lượng từng quán.",
+    thumbnailUrl: "https://picsum.photos/seed/hanoi-street/640/360",
+    duration: 1567,
+    viewCount: 76540,
+    likeCount: 4560,
+    dislikeCount: 134,
+  },
 ];
 
 const commentTexts = [
-  "Video rất hay, cảm ơn bạn!",
-  "Giải thích rõ ràng, dễ hiểu lắm",
-  "Mình sẽ thử theo hướng dẫn này",
-  "Bạn có thể làm video về ... không?",
-  "Tuyệt vời! Chờ video tiếp theo",
-  "Cảm ơn vì những tips hữu ích",
-  "Mình đã áp dụng và thành công rồi",
-  "Có thể chi tiết hơn về phần này không?",
-  "Rất bổ ích, đã subscribe rồi",
-  "Bạn giỏi quá, keep it up!",
+  "Video rất hay, cảm ơn bạn đã chia sẻ!",
+  "Giải thích rõ ràng, dễ hiểu lắm, subscribe rồi nha",
+  "Mình đã thử theo và thành công rồi, cảm ơn nhiều",
+  "Bạn có thể làm thêm video về chủ đề này không?",
+  "Tuyệt vời! Đang chờ video tiếp theo của bạn",
+  "Cảm ơn vì những tips hữu ích, rất thiết thực",
+  "Nội dung chất lượng cao, kênh này xứng đáng triệu sub",
+  "Có thể chi tiết hơn về phần cuối không, mình chưa hiểu lắm",
+  "Rất bổ ích, đã share cho bạn bè rồi",
+  "Bạn giỏi quá, keep it up! Ủng hộ dài dài",
+  "Đây là video hay nhất về chủ đề này mình từng xem",
+  "Cảm ơn bạn đã bỏ công sức làm video chất lượng như vậy",
+  "Mình xem đi xem lại mấy lần rồi, vẫn học được cái mới",
 ];
 
 async function seedDatabase() {
   try {
     console.log("🌱 Bắt đầu seed dữ liệu...");
 
-    // Seed users trước
+    // Seed users
     console.log("👤 Tạo users...");
     const userIds = [];
     for (const user of mockUsers) {
@@ -128,7 +320,7 @@ async function seedDatabase() {
     }
     console.log(`✓ Đã tạo ${userIds.length} users`);
 
-    // Seed channels (dùng userIds thực từ DB)
+    // Seed channels
     console.log("📺 Tạo channels...");
     const channelIds = [];
     for (let i = 0; i < mockChannels.length; i++) {
@@ -145,25 +337,26 @@ async function seedDatabase() {
     // Seed videos
     console.log("🎬 Tạo videos...");
     const videoIds = [];
-    for (let i = 0; i < 50; i++) {
-      const channelIndex = i % mockChannels.length;
-      const titleIndex = i % videoTitles.length;
-      const descIndex = i % videoDescriptions.length;
-
-      const title = `${videoTitles[titleIndex]} - Part ${Math.floor(i / videoTitles.length) + 1}`;
-      const description = videoDescriptions[descIndex];
+    for (let i = 0; i < videoData.length; i++) {
+      const v = videoData[i];
       const videoUrl = `/manus-storage/video-${i + 1}.mp4`;
-      const thumbnailUrl = `/manus-storage/thumbnail-${i + 1}.jpg`;
-      const duration = Math.floor(Math.random() * 1800) + 300;
-      const viewCount = Math.floor(Math.random() * 100000) + 100;
-      const likeCount = Math.floor(Math.random() * 5000);
-      const dislikeCount = Math.floor(Math.random() * 500);
       const createdAt = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
 
-      const category = CHANNEL_CATEGORIES[channelIndex];
       const [result] = await sql`
         INSERT INTO videos ("channelId", title, description, "videoUrl", "thumbnailUrl", duration, "viewCount", "likeCount", "dislikeCount", category, "createdAt")
-        VALUES (${channelIds[channelIndex]}, ${title}, ${description}, ${videoUrl}, ${thumbnailUrl}, ${duration}, ${viewCount}, ${likeCount}, ${dislikeCount}, ${category}, ${createdAt})
+        VALUES (
+          ${channelIds[v.channelIndex]},
+          ${v.title},
+          ${v.description},
+          ${videoUrl},
+          ${v.thumbnailUrl},
+          ${v.duration},
+          ${v.viewCount},
+          ${v.likeCount},
+          ${v.dislikeCount},
+          ${v.category},
+          ${createdAt}
+        )
         RETURNING id
       `;
       videoIds.push(result.id);
@@ -175,16 +368,16 @@ async function seedDatabase() {
     let commentCount = 0;
     for (let i = 0; i < videoIds.length; i++) {
       const videoId = videoIds[i];
-      const numComments = Math.floor(Math.random() * 20) + 5;
+      const numComments = Math.floor(Math.random() * 12) + 3;
 
       for (let j = 0; j < numComments; j++) {
         const commentIndex = Math.floor(Math.random() * commentTexts.length);
-        const userId = (Math.floor(Math.random() * mockChannels.length)) + 1;
+        const userId = userIds[Math.floor(Math.random() * userIds.length)];
         const createdAt = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000);
 
         await sql`
           INSERT INTO comments ("videoId", "userId", content, "likeCount", "createdAt")
-          VALUES (${videoId}, ${userId}, ${commentTexts[commentIndex]}, ${Math.floor(Math.random() * 100)}, ${createdAt})
+          VALUES (${videoId}, ${userId}, ${commentTexts[commentIndex]}, ${Math.floor(Math.random() * 150)}, ${createdAt})
         `;
         commentCount++;
       }
@@ -196,15 +389,15 @@ async function seedDatabase() {
     let likeCount = 0;
     for (let i = 0; i < videoIds.length; i++) {
       const videoId = videoIds[i];
-      const numLikes = Math.floor(Math.random() * 30) + 5;
+      const numLikes = Math.floor(Math.random() * 20) + 5;
       const addedUsers = new Set();
 
       for (let j = 0; j < numLikes; j++) {
-        const userId = (j % mockChannels.length) + 1;
+        const userId = userIds[j % userIds.length];
         if (addedUsers.has(userId)) continue;
         addedUsers.add(userId);
 
-        const type = Math.random() > 0.3 ? "like" : "dislike";
+        const type = Math.random() > 0.25 ? "like" : "dislike";
         const createdAt = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000);
 
         await sql`
@@ -221,12 +414,12 @@ async function seedDatabase() {
     let subscriptionCount = 0;
     for (let i = 0; i < channelIds.length; i++) {
       const channelId = channelIds[i];
-      const numSubscribers = Math.floor(Math.random() * 50) + 10;
       const addedUsers = new Set();
 
-      for (let j = 0; j < numSubscribers; j++) {
-        const userId = userIds[j % userIds.length];
+      for (let j = 0; j < userIds.length; j++) {
+        const userId = userIds[j];
         if (userId === userIds[i] || addedUsers.has(userId)) continue;
+        if (Math.random() < 0.6) continue; // 40% chance subscribe
         addedUsers.add(userId);
 
         const createdAt = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);

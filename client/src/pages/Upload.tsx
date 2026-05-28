@@ -10,15 +10,17 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 
-function extractFirstFrame(file: File): Promise<File> {
+function extractFirstFrame(file: File): Promise<{ thumbFile: File; duration: number }> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
     const objectUrl = URL.createObjectURL(file);
     video.src = objectUrl;
     video.muted = true;
     video.playsInline = true;
+    let duration = 0;
 
     video.addEventListener("loadedmetadata", () => {
+      duration = Math.round(video.duration) || 0;
       video.currentTime = Math.min(1, video.duration / 2);
     }, { once: true });
 
@@ -30,7 +32,7 @@ function extractFirstFrame(file: File): Promise<File> {
       URL.revokeObjectURL(objectUrl);
       canvas.toBlob(
         (blob) => {
-          if (blob) resolve(new File([blob], "thumbnail.jpg", { type: "image/jpeg" }));
+          if (blob) resolve({ thumbFile: new File([blob], "thumbnail.jpg", { type: "image/jpeg" }), duration });
           else reject(new Error("Canvas toBlob failed"));
         },
         "image/jpeg",
@@ -45,6 +47,22 @@ function extractFirstFrame(file: File): Promise<File> {
   });
 }
 
+function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    video.addEventListener("loadedmetadata", () => {
+      resolve(Math.round(video.duration) || 0);
+      URL.revokeObjectURL(url);
+    }, { once: true });
+    video.addEventListener("error", () => {
+      resolve(0);
+      URL.revokeObjectURL(url);
+    }, { once: true });
+  });
+}
+
 export default function Upload() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
@@ -53,6 +71,7 @@ export default function Upload() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -75,9 +94,7 @@ export default function Upload() {
         <div className="p-4 md:p-6 max-w-2xl mx-auto">
           <div className="text-center py-12">
             <p className="text-gray-600 mb-4">Vui lòng đăng nhập để upload video</p>
-            <a href="/">
-              <Button>Quay lại trang chủ</Button>
-            </a>
+            <Button onClick={() => navigate("/")}>Quay lại trang chủ</Button>
           </div>
         </div>
       </Layout>
@@ -114,12 +131,17 @@ export default function Upload() {
       setVideoFile(file);
       if (!thumbnailFile) {
         extractFirstFrame(file)
-          .then((thumbFile) => {
+          .then(({ thumbFile, duration }) => {
+            setVideoDuration(duration);
             setThumbnailFile(thumbFile);
             setThumbnailPreview(URL.createObjectURL(thumbFile));
             setIsAutoThumbnail(true);
           })
-          .catch(() => {});
+          .catch(() => {
+            getVideoDuration(file).then(setVideoDuration);
+          });
+      } else {
+        getVideoDuration(file).then(setVideoDuration);
       }
     }
   };
@@ -160,12 +182,17 @@ export default function Upload() {
         setVideoFile(file);
         if (!thumbnailFile) {
           extractFirstFrame(file)
-            .then((thumbFile) => {
+            .then(({ thumbFile, duration }) => {
+              setVideoDuration(duration);
               setThumbnailFile(thumbFile);
               setThumbnailPreview(URL.createObjectURL(thumbFile));
               setIsAutoThumbnail(true);
             })
-            .catch(() => {});
+            .catch(() => {
+              getVideoDuration(file).then(setVideoDuration);
+            });
+        } else {
+          getVideoDuration(file).then(setVideoDuration);
         }
       }
     }
@@ -306,7 +333,7 @@ export default function Upload() {
         description: description.trim(),
         videoUrl: videoUploadResult.url,
         thumbnailUrl: thumbnailUrl,
-        duration: 0,
+        duration: videoDuration,
         category: category || undefined,
       });
 

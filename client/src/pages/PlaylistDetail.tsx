@@ -1,6 +1,6 @@
 import Layout from "@/components/Layout";
 import { trpc } from "@/lib/trpc";
-import { useParams } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ListVideo, Globe, Lock, ArrowLeft, Trash2 } from "lucide-react";
@@ -12,7 +12,7 @@ import { vi } from "date-fns/locale";
 function VideoRow({ video, onRemove }: { video: any; onRemove?: () => void }) {
   return (
     <div className="flex gap-3 items-start p-3 rounded-lg hover:bg-gray-50 group">
-      <a href={`/watch/${video.id}`} className="flex-shrink-0">
+      <Link href={`/watch/${video.id}`} className="flex-shrink-0">
         <div className="w-36 h-20 rounded-lg overflow-hidden bg-gray-100">
           {video.thumbnailUrl
             ? <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
@@ -21,11 +21,11 @@ function VideoRow({ video, onRemove }: { video: any; onRemove?: () => void }) {
               </div>
           }
         </div>
-      </a>
+      </Link>
       <div className="flex-1 min-w-0">
-        <a href={`/watch/${video.id}`} className="hover:text-primary transition-colors">
+        <Link href={`/watch/${video.id}`} className="hover:text-primary transition-colors">
           <h3 className="font-medium text-gray-900 line-clamp-2 text-sm">{video.title}</h3>
-        </a>
+        </Link>
         {video.channelName && (
           <p className="text-xs text-gray-500 mt-1">{video.channelName}</p>
         )}
@@ -48,6 +48,7 @@ function VideoRow({ video, onRemove }: { video: any; onRemove?: () => void }) {
 
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
   const playlistId = parseInt(id ?? "0", 10);
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -102,9 +103,9 @@ export default function PlaylistDetail() {
         <div className="p-6 text-center py-16">
           <ListVideo className="w-14 h-14 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500">Không tìm thấy danh sách phát.</p>
-          <a href="/playlists" className="mt-4 inline-block text-primary text-sm hover:underline">
+          <Link href="/playlists" className="mt-4 inline-block text-primary text-sm hover:underline">
             ← Quay lại
-          </a>
+          </Link>
         </div>
       </Layout>
     );
@@ -134,12 +135,15 @@ export default function PlaylistDetail() {
             </div>
           </div>
           {isOwner && (
-            <a href="/playlists">
-              <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0">
-                <ArrowLeft className="w-4 h-4" />
-                Quản lý
-              </Button>
-            </a>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 flex-shrink-0"
+              onClick={() => navigate("/playlists")}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Quản lý
+            </Button>
           )}
         </div>
 

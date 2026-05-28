@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import Layout from "@/components/Layout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -161,7 +162,7 @@ export default function Playlists() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {playlists.map((playlist) => (
               <div key={playlist.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group hover:shadow-md transition-shadow">
-                <a href={`/playlist/${playlist.id}`} className="block">
+                <Link href={`/playlist/${playlist.id}`} className="block">
                   <div className="h-36 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative">
                     {playlist.thumbnailUrl
                       ? <img src={playlist.thumbnailUrl} alt={playlist.name} className="w-full h-full object-cover" />
@@ -171,11 +172,11 @@ export default function Playlists() {
                       {playlist.videoCount} video
                     </div>
                   </div>
-                </a>
+                </Link>
                 <div className="p-4">
-                  <a href={`/playlist/${playlist.id}`} className="block group-hover:text-primary transition-colors">
+                  <Link href={`/playlist/${playlist.id}`} className="block group-hover:text-primary transition-colors">
                     <h3 className="font-semibold text-gray-900 truncate">{playlist.name}</h3>
-                  </a>
+                  </Link>
                   {playlist.description && (
                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">{playlist.description}</p>
                   )}

@@ -71,7 +71,7 @@ Các trigger duy trì denormalized counters tự động — atomic, không race
 ## Supabase Setup
 ```bash
 npm run db:setup     # Drop tất cả tables cũ + tạo lại đúng schema
-npm run seed         # Seed 5 channels, 50 videos, ~400 comments, ~750 likes
+npm run seed         # Seed 5 channels, 20 videos với picsum thumbnails, ~177 comments
 npm run db:triggers  # Áp dụng 4 counter triggers (chạy 1 lần sau db:setup)
 ```
 Hoặc chạy `drizzle/supabase-setup.sql` + `drizzle/triggers.sql` thủ công trong Supabase SQL Editor.
@@ -99,20 +99,22 @@ npm run db:setup && npm run seed && npm run db:triggers
 - Tags (tag video, search by tag)
 - Notifications (create, read, mark as read)
 - Reports (video/comment reporting)
-- Mock seed data: 5 channels, 50 videos, ~400 comments, ~750 likes, ~118 subscriptions
 - `channelName` hiển thị đúng trong VideoCard (LEFT JOIN channels trong tất cả query)
 - `category` column thêm vào DB + seed data (news/gaming/music/movies/live/sports)
 - Related videos trong Watch page dùng cùng channel (không random)
 - **Database triggers**: 4 counter triggers — atomic, không race condition
+- **Sidebar state persistent**: localStorage giữ trạng thái mở/đóng sidebar qua route changes
+- **SPA navigation**: Sidebar + TopNavigation dùng wouter `<Link>` thay `<a href>` — không reload trang
 
-### Còn thiếu / cần làm
+### Còn thiếu / cần làm (ưu tiên cao → thấp)
+
+#### 🔴 Bug chưa fix
+*(Tất cả bug đã được fix — xem các section "Đã fix" bên dưới)*
+
+#### 🟡 Cải tiến
 - **Upload video lớn (>35MB)**: cần multipart upload thay vì gửi bytes qua tRPC body (limit 50MB thực tế ~35MB do base64 overhead)
-- **`npm run db:triggers` chưa chạy lên Supabase production** — cần chạy 1 lần sau khi deploy
-- **Bug sidebar flash khi chuyển trang**: khi click link chuyển trang, sidebar thoáng hiện trạng thái mở (như ấn hamburger) trước khi sang trang mới — chưa điều tra nguyên nhân (`Layout.tsx`, `Sidebar.tsx`, `TopNavigation.tsx`)
-- **Flash lần đầu mở app**: lần đầu tiên vào app (localStorage trống), TopNavigation thoáng hiện "Đăng nhập" trước khi load xong — cần SSR hoặc loading screen để fix triệt để
-- **GitHub token bị lộ trong chat**: token `ghp_W7uM6...` đã share trong lịch sử — cần revoke ngay tại GitHub Settings → Developer settings → Personal access tokens
-- **Video duration**: `duration` luôn được set `0` khi upload — cần extract duration từ video element trong `Upload.tsx` (tương tự `extractFirstFrame`)
 - **Trang ComponentShowcase**: `client/src/pages/ComponentShowcase.tsx` là trang dev nội bộ, chưa có route — cân nhắc xóa hoặc ẩn
+- **GitHub token bị lộ trong chat**: token `ghp_W7uM6...` đã share trong lịch sử — cần revoke ngay tại GitHub Settings → Developer settings → Personal access tokens
 
 ### Đã fix — Session cũ
 - ✅ `tsconfig.json`: xóa `baseUrl` deprecated (TypeScript 6.0 warning)
@@ -129,6 +131,18 @@ npm run db:setup && npm run seed && npm run db:triggers
 - ✅ **Database triggers** (4 triggers): `trg_likes_update_video_counts`, `trg_comments_update_video_count`, `trg_subscriptions_update_channel_count`, `trg_playlist_videos_update_count` — loại bỏ race condition từ read-then-write pattern
 - ✅ **db.ts đơn giản hoá**: bỏ manual counter updates khỏi 6 hàm (`incrementVideoViewCount`, `createComment`, `toggleLike`, `toggleSubscription`, `addVideoToPlaylist`, `removeVideoFromPlaylist`) — mỗi hàm tiết kiệm 1-2 DB round-trips
 - ✅ **Local storage fallback**: `storagePut()` không crash khi thiếu `BUILT_IN_FORGE_API_URL` — lưu file vào `server/uploads/`, serve qua `/uploads/*` (Express static)
+
+### Đã fix — Session 2026-05-28 (phần 4)
+- ✅ **SPA navigation toàn bộ pages** — thay tất cả `<a href>` nội bộ bằng wouter `<Link>` hoặc `onClick={() => navigate(...)}` trong: `Watch.tsx` (channel link, login link, related videos), `Upload.tsx` (quay lại), `Channel.tsx` (upload button), `History.tsx` (watch links, home link), `Category.tsx` (home link), `Tag.tsx` (home link), `PlaylistDetail.tsx` (watch links, quản lý button, back link), `Profile.tsx` (settings + channel buttons), `Playlists.tsx` (playlist detail links). Loại bỏ hoàn toàn full page reload khi navigate.
+
+### Đã fix — Session 2026-05-28 (phần 3)
+- ✅ **Sidebar flash khi chuyển trang** (`Layout.tsx`): `useState(true)` → `useState(readSidebarState)` — lazy init từ localStorage. Mọi toggle/close ghi lại vào `sidebar-open` key. Layout remount → đọc đúng state → không flash.
+- ✅ **SPA navigation trong Sidebar** (`Sidebar.tsx`): thay `<a href>` bằng wouter `<Link>`. `handleNavClick` chỉ gọi `onClose()` khi `window.innerWidth < 768` — desktop giữ sidebar mở, mobile đóng overlay.
+- ✅ **SPA navigation trong TopNavigation** (`TopNavigation.tsx`): logo dùng `<Link href="/">`. Dropdown items dùng `onClick={() => navigate(...)}` thay vì `asChild + <a href>`.
+- ✅ **Double-click bug** (`TopNavigation.tsx`): `<Link><Button>` → `<Button onClick={navigate}>` (tránh `<a><button>` nesting invalid HTML). Notification bell: `<Link>` → `<button onClick={navigate}>`.
+- ✅ **Video duration = 0 khi upload** (`Upload.tsx`): `extractFirstFrame` trả `{ thumbFile, duration }`. Thêm `getVideoDuration()` helper. `createWithUrlsMutation` dùng `videoDuration` state thay hardcode `0`.
+- ✅ **Seed data redesign** (`server/seed-data.mjs`): 50 videos broken → 20 videos với title/description thực, 6 categories (news×4, gaming×3, music×3, movies×3, sports×3, live×4). Thumbnail: `https://picsum.photos/seed/{keyword}/640/360` — 16:9, seed cố định, không cần API key. Channel avatar: `https://picsum.photos/seed/channel-{name}/80/80`.
+- ✅ **Schema thiếu category** (`drizzle/supabase-setup.sql`): thêm `category VARCHAR(50)` vào CREATE TABLE videos. Chạy lại `db:setup && seed && db:triggers` thành công.
 
 ### Đã fix — Session 2026-05-28 (phần 2)
 - ✅ **Video autoplay** (`client/src/components/VideoPlayer.tsx`): `handleCanPlay` gọi `video.play()` tự động; nếu browser chặn autoplay có âm thanh thì fallback `video.muted = true` và play lại — không dùng `autoPlay` attribute để tránh double-trigger
@@ -159,7 +173,7 @@ npm run seed
 - **`BUILT_IN_FORGE_API_URL` optional** — `storagePut()` tự fallback về local disk nếu thiếu. Production cần set Forge vars.
 - **Auth `placeholderData` từ localStorage** — `useAuth` dùng localStorage làm cache tạm để tránh flash. Session hết hạn → server trả 401 → localStorage bị xoá → user phải login lại bình thường. KHÔNG đọc localStorage nếu muốn force re-auth.
 - **`extractFirstFrame()` trong Upload** — dùng Canvas API client-side, không cần ffmpeg. Video phải load được trong browser. Frame tại `Math.min(1, duration/2)` giây. Nếu video lỗi hoặc format không hỗ trợ, thumbnail bị bỏ qua silently.
-- **Video `duration` luôn là `0` khi upload** — `createWithUrlsMutation` hardcode `duration: 0`. Cần extract từ video element trước khi submit (tương tự `extractFirstFrame`).
+- **Video `duration`** — đã fix session 3: `extractFirstFrame` trả về `{thumbFile, duration}`, `getVideoDuration()` helper cho trường hợp không auto-thumbnail.
 - Schema was MySQL (`mysqlTable`) — migrated to PostgreSQL (`pgTable`) for Supabase
 - `onDuplicateKeyUpdate` → `onConflictDoUpdate` (PostgreSQL syntax in Drizzle)
 - `updatedAt` columns: chỉ `playlists` có trigger tự cập nhật (khi add/remove video). Các bảng khác update thủ công.

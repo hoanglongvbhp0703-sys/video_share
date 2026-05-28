@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import Layout from "@/components/Layout";
 import VideoCard from "@/components/VideoCard";
 import { trpc } from "@/lib/trpc";
@@ -62,9 +62,9 @@ export default function Category() {
         ) : (
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-gray-600 text-lg">Chưa có video nào trong danh mục này</p>
-            <a href="/" className="mt-3 text-sm text-primary hover:underline">
+            <Link href="/" className="mt-3 text-sm text-primary hover:underline">
               Khám phá tất cả video →
-            </a>
+            </Link>
           </div>
         )}
       </div>

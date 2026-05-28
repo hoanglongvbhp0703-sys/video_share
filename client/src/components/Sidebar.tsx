@@ -1,5 +1,5 @@
 import { Home, Flame, Zap, Music, Gamepad2, Film, Tv, Trophy, Newspaper, Settings, HelpCircle, X, History, Bell, ListVideo } from "lucide-react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -29,10 +29,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     return location.startsWith(href);
   };
 
+  const handleNavClick = () => {
+    // chỉ đóng sidebar trên mobile (overlay)
+    if (window.innerWidth < 768) {
+      onClose?.();
+    }
+  };
+
   const NavLink = ({ href, icon: Icon, label }: { href: string; icon: typeof Home; label: string }) => (
-    <a
+    <Link
       href={href}
-      onClick={onClose}
+      onClick={handleNavClick}
       className={cn(
         "flex items-center gap-4 px-3 py-2 rounded-lg transition-colors",
         isActive(href)
@@ -42,7 +49,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     >
       <Icon className="w-5 h-5 flex-shrink-0" />
       <span className="text-sm">{label}</span>
-    </a>
+    </Link>
   );
 
   return (
@@ -94,22 +101,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* Footer Navigation */}
           <div className="border-t border-gray-200 px-3 py-4 space-y-1">
-            <a
+            <Link
               href="/settings"
-              onClick={onClose}
+              onClick={handleNavClick}
               className="flex items-center gap-4 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <Settings className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">Cài đặt</span>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/help"
-              onClick={onClose}
+              onClick={handleNavClick}
               className="flex items-center gap-4 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <HelpCircle className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm">Trợ giúp</span>
-            </a>
+            </Link>
           </div>
         </div>
       </aside>

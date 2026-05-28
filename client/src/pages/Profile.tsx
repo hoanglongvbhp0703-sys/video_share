@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import Layout from "@/components/Layout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -10,6 +11,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
 export default function Profile() {
+  const [, navigate] = useLocation();
   const { isAuthenticated } = useAuth();
 
   const { data: profile, isLoading } = trpc.users.getMyProfile.useQuery(undefined, {
@@ -73,12 +75,10 @@ export default function Profile() {
                   {profile.name?.charAt(0).toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
-              <a href="/settings">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  Chỉnh sửa hồ sơ
-                </Button>
-              </a>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/settings")}>
+                <Settings className="w-4 h-4" />
+                Chỉnh sửa hồ sơ
+              </Button>
             </div>
 
             <h1 className="text-2xl font-bold text-gray-900">{profile.name || "Người dùng"}</h1>
@@ -126,9 +126,7 @@ export default function Profile() {
               </div>
             </div>
 
-            <a href="/channel">
-              <Button size="sm" variant="outline">Xem kênh</Button>
-            </a>
+            <Button size="sm" variant="outline" onClick={() => navigate("/channel")}>Xem kênh</Button>
           </div>
 
           {channel.description && (

@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -187,7 +187,7 @@ export default function Watch() {
 
             {/* Channel Info and Subscribe */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-              <a href={`/channel/${video.channelId}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <Link href={`/channel/${video.channelId}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <Avatar className="w-10 h-10">
                   <AvatarFallback className="bg-primary text-white font-bold">
                     {channel?.name?.charAt(0).toUpperCase() ?? "K"}
@@ -199,7 +199,7 @@ export default function Watch() {
                     {channel?.subscriberCount?.toLocaleString() ?? 0} người đăng ký
                   </p>
                 </div>
-              </a>
+              </Link>
               <Button
                 variant={isSubscribed ? "outline" : "default"}
                 onClick={handleToggleSubscription}
@@ -285,7 +285,7 @@ export default function Watch() {
                 </form>
               ) : (
                 <p className="text-sm text-gray-600 mb-6">
-                  <a href="/login" className="text-primary hover:underline">Đăng nhập</a> để bình luận
+                  <Link href="/login" className="text-primary hover:underline">Đăng nhập</Link> để bình luận
                 </p>
               )}
 
@@ -325,7 +325,7 @@ export default function Watch() {
                   .filter((v) => v.id !== videoId)
                   .slice(0, 5)
                   .map((relatedVideo) => (
-                    <a
+                    <Link
                       key={relatedVideo.id}
                       href={`/watch/${relatedVideo.id}`}
                       className="flex gap-2 hover:opacity-80 transition-opacity group"
@@ -356,7 +356,7 @@ export default function Watch() {
                           {relatedVideo.viewCount.toLocaleString()} lượt xem
                         </p>
                       </div>
-                    </a>
+                    </Link>
                   ))
               ) : (
                 <div className="text-sm text-gray-600">Không có video liên quan</div>

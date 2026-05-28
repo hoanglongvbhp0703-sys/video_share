@@ -69,6 +69,9 @@ CREATE TABLE users (
   name TEXT,
   email VARCHAR(320),
   "loginMethod" VARCHAR(64),
+  password TEXT,
+  "avatarUrl" TEXT,
+  bio TEXT,
   role VARCHAR(10) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
   "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -102,6 +105,7 @@ CREATE TABLE videos (
   "likeCount" INTEGER NOT NULL DEFAULT 0,
   "dislikeCount" INTEGER NOT NULL DEFAULT 0,
   "commentCount" INTEGER NOT NULL DEFAULT 0,
+  category VARCHAR(50),
   "isPublished" BOOLEAN NOT NULL DEFAULT TRUE,
   "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
   "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()

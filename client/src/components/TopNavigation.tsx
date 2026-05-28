@@ -12,7 +12,7 @@ import {
 import { Search, Upload, Menu, User, Tv, History, Settings, LogOut, Bell } from "lucide-react";
 import { getLoginUrl, getRegisterUrl } from "@/const";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 
 interface TopNavigationProps {
@@ -50,12 +50,12 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
           >
             <Menu className="w-6 h-6 text-gray-700" />
           </button>
-          <a href="/" className="flex items-center gap-2 font-bold text-xl text-primary hover:text-primary/90 transition-colors">
+          <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary hover:text-primary/90 transition-colors">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">VS</span>
             </div>
             <span className="hidden sm:inline">VideoShare</span>
-          </a>
+          </Link>
         </div>
 
         {/* Center: Search Bar */}
@@ -81,24 +81,26 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
         <div className="flex items-center gap-2">
           {isAuthenticated && (
             <>
-              <a href="/upload">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2 text-gray-700 hover:bg-gray-100"
-                >
-                  <Upload className="w-5 h-5" />
-                  <span className="hidden sm:inline">Upload</span>
-                </Button>
-              </a>
-              <a href="/notifications" className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/upload")}
+                className="gap-2 text-gray-700 hover:bg-gray-100"
+              >
+                <Upload className="w-5 h-5" />
+                <span className="hidden sm:inline">Upload</span>
+              </Button>
+              <button
+                onClick={() => navigate("/notifications")}
+                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
                 <Bell className="w-5 h-5 text-gray-700" />
                 {(unreadCount ?? 0) > 0 && (
                   <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
                     {(unreadCount ?? 0) > 99 ? "99+" : unreadCount}
                   </span>
                 )}
-              </a>
+              </button>
             </>
           )}
 
@@ -130,31 +132,23 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                 </div>
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem asChild>
-                  <a href="/profile" className="cursor-pointer flex items-center gap-3 px-4 py-2">
-                    <User className="w-4 h-4 text-gray-500" />
-                    <span>Hồ sơ của tôi</span>
-                  </a>
+                <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
+                  <User className="w-4 h-4 text-gray-500" />
+                  <span>Hồ sơ của tôi</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="/channel" className="cursor-pointer flex items-center gap-3 px-4 py-2">
-                    <Tv className="w-4 h-4 text-gray-500" />
-                    <span>Kênh của tôi</span>
-                  </a>
+                <DropdownMenuItem onClick={() => navigate("/channel")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
+                  <Tv className="w-4 h-4 text-gray-500" />
+                  <span>Kênh của tôi</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <a href="/history" className="cursor-pointer flex items-center gap-3 px-4 py-2">
-                    <History className="w-4 h-4 text-gray-500" />
-                    <span>Lịch sử xem</span>
-                  </a>
+                <DropdownMenuItem onClick={() => navigate("/history")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
+                  <History className="w-4 h-4 text-gray-500" />
+                  <span>Lịch sử xem</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem asChild>
-                  <a href="/settings" className="cursor-pointer flex items-center gap-3 px-4 py-2">
-                    <Settings className="w-4 h-4 text-gray-500" />
-                    <span>Cài đặt</span>
-                  </a>
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
+                  <Settings className="w-4 h-4 text-gray-500" />
+                  <span>Cài đặt</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
 

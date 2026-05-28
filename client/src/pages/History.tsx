@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import Layout from "@/components/Layout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -64,7 +65,7 @@ export default function History() {
         ) : history && history.length > 0 ? (
           <div className="space-y-3">
             {history.map((item) => (
-              <a
+              <Link
                 key={item.id}
                 href={`/watch/${item.videoId}`}
                 className="flex gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
@@ -98,16 +99,16 @@ export default function History() {
                     Đã xem {formatDistanceToNow(new Date(item.watchedAt), { locale: vi, addSuffix: true })}
                   </p>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         ) : (
           <div className="text-center py-16">
             <HistoryIcon className="w-14 h-14 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-600 font-medium">Chưa có lịch sử xem</p>
-            <a href="/" className="inline-block mt-3 text-sm text-primary hover:underline">
+            <Link href="/" className="inline-block mt-3 text-sm text-primary hover:underline">
               Khám phá video ngay →
-            </a>
+            </Link>
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import Layout from "@/components/Layout";
 import VideoCard from "@/components/VideoCard";
 import { trpc } from "@/lib/trpc";
@@ -71,9 +71,9 @@ export default function TagPage() {
           <div className="flex flex-col items-center justify-center py-16">
             <Tag className="w-14 h-14 text-gray-200 mb-3" />
             <p className="text-gray-500 text-sm">Chưa có video nào với tag này.</p>
-            <a href="/" className="mt-3 text-sm text-primary hover:underline">
+            <Link href="/" className="mt-3 text-sm text-primary hover:underline">
               Khám phá tất cả video →
-            </a>
+            </Link>
           </div>
         )}
       </div>

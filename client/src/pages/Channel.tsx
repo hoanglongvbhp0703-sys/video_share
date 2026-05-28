@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useState } from "react";
 import Layout from "@/components/Layout";
 import { trpc } from "@/lib/trpc";
@@ -15,6 +15,7 @@ interface ChannelParams {
 
 export default function Channel() {
   const { id } = useParams<ChannelParams>();
+  const [, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -121,9 +122,7 @@ export default function Channel() {
             </div>
 
             {isMyChannel ? (
-              <a href="/upload">
-                <Button>Upload video</Button>
-              </a>
+              <Button onClick={() => navigate("/upload")}>Upload video</Button>
             ) : (
               <Button
                 onClick={handleToggleSubscribe}
