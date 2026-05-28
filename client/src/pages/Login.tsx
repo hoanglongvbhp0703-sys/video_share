@@ -15,8 +15,6 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [step, setStep] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -51,9 +49,7 @@ export default function Login() {
       if (res.ok) {
         window.location.href = "/";
       } else if (res.status === 422 && data?.error === "NAME_REQUIRED") {
-        // Email chưa tồn tại → chuyển sang form đăng ký
-        setStep("register");
-        setError("");
+        setError("Email này chưa có tài khoản. Vui lòng đăng ký trước.");
       } else if (data?.error === "INVALID_CREDENTIALS") {
         setError("Email hoặc mật khẩu không đúng");
       } else if (data?.error === "NO_PASSWORD") {
@@ -68,46 +64,6 @@ export default function Login() {
     }
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError("Vui lòng nhập tên hiển thị");
-      return;
-    }
-    if (!password || password.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự");
-      return;
-    }
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password, name: name.trim() }),
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        window.location.href = "/";
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.message || data?.error || "Đăng ký thất bại");
-      }
-    } catch {
-      setError("Không thể kết nối đến server");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const goBackToLogin = () => {
-    setStep("login");
-    setError("");
-    setName("");
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
@@ -117,14 +73,10 @@ export default function Login() {
             <span className="text-white text-2xl font-bold">VS</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">VideoShare</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {step === "login" ? "Đăng nhập để tiếp tục" : "Tạo tài khoản mới"}
-          </p>
+          <p className="text-gray-500 text-sm mt-1">Đăng nhập để tiếp tục</p>
         </div>
 
-        {/* Login form */}
-        {step === "login" && (
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
+        <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Địa chỉ email
@@ -169,13 +121,11 @@ export default function Login() {
 
             <p className="text-center text-sm text-gray-500">
               Chưa có tài khoản?{" "}
-              <button
-                type="button"
-                onClick={() => { setStep("register"); setError(""); }}
-                className="text-primary font-medium hover:underline"
-              >
-                Đăng ký ngay
-              </button>
+              <Link href="/register">
+                <span className="text-primary font-medium hover:underline cursor-pointer">
+                  Đăng ký ngay
+                </span>
+              </Link>
             </p>
 
             {hasOAuth && (
@@ -198,64 +148,7 @@ export default function Login() {
                 </a>
               </>
             )}
-          </form>
-        )}
-
-        {/* Register form */}
-        {step === "register" && (
-          <form onSubmit={handleRegisterSubmit} className="space-y-4">
-            <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-              Email <strong>{email}</strong> chưa có tài khoản. Điền thông tin để đăng ký.
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tên hiển thị
-              </label>
-              <Input
-                placeholder="Tên của bạn"
-                value={name}
-                onChange={(e) => { setName(e.target.value); setError(""); }}
-                disabled={loading}
-                autoFocus
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mật khẩu
-              </label>
-              <Input
-                type="password"
-                placeholder="Tối thiểu 6 ký tự"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                disabled={loading}
-                required
-              />
-            </div>
-
-            {error && <p className="text-sm text-red-600">{error}</p>}
-
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={loading || !name.trim() || !password}
-            >
-              {loading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
-            </Button>
-
-            <button
-              type="button"
-              onClick={goBackToLogin}
-              className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              ← Quay lại đăng nhập
-            </button>
-          </form>
-        )}
+        </form>
       </div>
     </div>
   );
