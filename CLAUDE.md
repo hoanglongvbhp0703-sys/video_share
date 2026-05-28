@@ -113,6 +113,7 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Auth email + password**: Login/Register yêu cầu password (bcrypt verify). Không còn passwordless.
 - **Role system**: `users.role` = `"user"` | `"admin"`. `adminProcedure` middleware bảo vệ các route admin.
 - **Admin Panel** (`/admin`): Dashboard thống kê, quản lý users (đổi role), xử lý reports (xóa video/comment).
+- **Fuzzy search + autocomplete**: Tìm kiếm theo từng token (OR logic), tìm trên title + description + channel name, xếp theo relevance score. Gõ từ khóa ≥ 2 ký tự → dropdown gợi ý.
 
 ### Còn thiếu / cần làm (ưu tiên cao → thấp)
 
@@ -134,6 +135,11 @@ npm run db:setup && npm run seed && npm run db:triggers
 - ✅ Đăng ký button: TopNavigation hiển thị cả "Đăng ký" + "Đăng nhập" khi chưa login
 - ✅ `getLoginUrl` fallback: `"/"` → `"/login"` khi thiếu env vars. Thêm `getRegisterUrl()`.
 - ✅ `/settings` route: redirect về `/profile`; `/help` route: redirect về `/`
+
+### Đã làm — Session 2026-05-28 (phần 6)
+- ✅ **Fuzzy search** (`server/db.ts` — `searchVideos`): tách query thành tokens, dùng `ILIKE` OR trên title + description + channel name. Kết quả xếp theo relevance score: title khớp chính xác (300đ) > title chứa cụm từ (150đ) > title chứa từng token (50đ) > channel name (30đ) > description (10đ), sau đó theo viewCount. Commit `0ebb951`.
+- ✅ **Autocomplete suggest** (`server/db.ts` — `suggestVideos`, `server/routers.ts` — `videos.suggest`): endpoint trả tối đa 8 gợi ý (id + title + channelName) cho query ≥ 2 ký tự.
+- ✅ **Search dropdown** (`client/src/components/TopNavigation.tsx`): debounce 300ms gọi `videos.suggest`, hiển thị dropdown gợi ý bên dưới thanh tìm kiếm, click ngoài để đóng, hoạt động cả desktop lẫn mobile.
 
 ### Đã làm — Session 2026-05-28 (phần 5)
 - ✅ **Login yêu cầu password** (`server/_core/localAuth.ts`): `POST /api/auth/login` giờ nhận `{ email, password, name? }`. Existing user → `bcrypt.compare` verify. User không có password (OAuth/mock cũ) → 401 `NO_PASSWORD`. New user → hash password được nhập (tối thiểu 6 ký tự), không dùng default nữa.
