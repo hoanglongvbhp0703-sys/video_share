@@ -1,4 +1,4 @@
-import { useLocation } from "wouter";
+import { useSearch } from "wouter";
 import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { trpc } from "@/lib/trpc";
@@ -6,15 +6,15 @@ import VideoCard from "@/components/VideoCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Search() {
-  const [location] = useLocation();
+  const search = useSearch();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Extract query from URL
+  // Extract query from URL search string
   useEffect(() => {
-    const params = new URLSearchParams(location.split("?")[1]);
+    const params = new URLSearchParams(search);
     const q = params.get("q") || "";
     setSearchQuery(q);
-  }, [location]);
+  }, [search]);
 
   const { data: results, isLoading } = trpc.videos.search.useQuery(
     { query: searchQuery, limit: 20, offset: 0 },
