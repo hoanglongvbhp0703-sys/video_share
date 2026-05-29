@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.git/
+*.log
+.manus-logs/
+server/uploads/
+playwright-report/
+test-results/
+.claude/

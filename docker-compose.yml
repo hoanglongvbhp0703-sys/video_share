@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    volumes:
+      # Persist uploaded files giữa các lần restart
+      - uploads:/app/server/uploads
+    restart: unless-stopped
+
+volumes:
+  uploads:
