@@ -2,8 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 
 export default function ForgotPassword() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -12,7 +14,7 @@ export default function ForgotPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Vui lòng nhập email hợp lệ (ví dụ: you@example.com)");
+      setError(t("auth.errorEmailForgotPassword"));
       return;
     }
     setError("");
@@ -29,10 +31,10 @@ export default function ForgotPassword() {
         setSent(true);
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data?.message || "Đã xảy ra lỗi, vui lòng thử lại");
+        setError(data?.message || t("auth.errorServerError"));
       }
     } catch {
-      setError("Không thể kết nối đến server");
+      setError(t("auth.errorCantConnect"));
     } finally {
       setLoading(false);
     }
@@ -45,22 +47,22 @@ export default function ForgotPassword() {
           <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-3">
             <span className="text-white text-2xl font-bold">VS</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Quên mật khẩu</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("auth.forgotPasswordTitle")}</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {sent ? "Kiểm tra server console để lấy link" : "Nhập email để nhận link đặt lại mật khẩu"}
+            {sent ? t("auth.forgotPasswordSentSubtitle") : t("auth.forgotPasswordSubtitle")}
           </p>
         </div>
 
         {sent ? (
           <div className="space-y-4">
             <div className="p-4 bg-green-50 rounded-lg text-sm text-green-700 text-center">
-              Nếu email <strong>{email}</strong> tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi.
+              {t("auth.forgotPasswordSentMessage", { email })}
               <br /><br />
-              <span className="text-xs text-green-600">(Dev: xem console server để lấy link)</span>
+              <span className="text-xs text-green-600">{t("auth.forgotPasswordDevHint")}</span>
             </div>
             <Link href="/login">
               <Button variant="outline" className="w-full">
-                ← Quay lại đăng nhập
+                {t("auth.backToLogin")}
               </Button>
             </Link>
           </div>
@@ -68,11 +70,11 @@ export default function ForgotPassword() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Địa chỉ email
+                {t("auth.email")}
               </label>
               <Input
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t("auth.emailPlaceholder")}
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 disabled={loading}
@@ -84,7 +86,7 @@ export default function ForgotPassword() {
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <Button type="submit" className="w-full" size="lg" disabled={loading || !email.trim()}>
-              {loading ? "Đang gửi..." : "Gửi link đặt lại mật khẩu"}
+              {loading ? t("auth.sendingResetLink") : t("auth.sendResetLink")}
             </Button>
 
             <Link href="/login">
@@ -92,7 +94,7 @@ export default function ForgotPassword() {
                 type="button"
                 className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors text-center"
               >
-                ← Quay lại đăng nhập
+                {t("auth.backToLogin")}
               </button>
             </Link>
           </form>

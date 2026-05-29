@@ -2,27 +2,29 @@ import { Home, Flame, Zap, Music, Gamepad2, Film, Tv, Trophy, Newspaper, Setting
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface SidebarProps {
   isOpen: boolean;
   onClose?: () => void;
 }
 
-const mainNav = [
-  { icon: Home,      label: "Trang chủ",  href: "/" },
-  { icon: Flame,     label: "Xu hướng",   href: "/trending" },
-  { icon: Zap,       label: "Hot 🔥",     href: "/tag/hot" },
-  { icon: Music,     label: "Âm nhạc",    href: "/tag/nhac" },
-  { icon: Gamepad2,  label: "Gaming",      href: "/tag/gaming" },
-  { icon: Film,      label: "Phim",        href: "/tag/phim" },
-  { icon: Tv,        label: "Trực tiếp",   href: "/tag/live" },
-  { icon: Trophy,    label: "Thể thao",    href: "/tag/the-thao" },
-  { icon: Newspaper, label: "Tin tức",     href: "/tag/tin-tuc" },
-];
-
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location] = useLocation();
   const { isAuthenticated, user } = useAuth();
+  const { t } = useTranslation();
+
+  const mainNav = [
+    { icon: Home,      label: t("nav.home"),    href: "/" },
+    { icon: Flame,     label: t("nav.trending"), href: "/trending" },
+    { icon: Zap,       label: t("nav.hot"),      href: "/tag/hot" },
+    { icon: Music,     label: t("nav.music"),    href: "/tag/nhac" },
+    { icon: Gamepad2,  label: t("nav.gaming"),   href: "/tag/gaming" },
+    { icon: Film,      label: t("nav.movies"),   href: "/tag/phim" },
+    { icon: Tv,        label: t("nav.live"),     href: "/tag/live" },
+    { icon: Trophy,    label: t("nav.sports"),   href: "/tag/the-thao" },
+    { icon: Newspaper, label: t("nav.news"),     href: "/tag/tin-tuc" },
+  ];
 
   const isActive = (href: string) => {
     if (href === "/") return location === "/";
@@ -30,7 +32,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const handleNavClick = () => {
-    // chỉ đóng sidebar trên mobile (overlay)
     if (window.innerWidth < 768) {
       onClose?.();
     }
@@ -54,7 +55,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile Overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -62,7 +62,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed md:sticky top-16 left-0 h-[calc(100vh-64px)] w-64 bg-background border-r border-border overflow-y-auto transition-transform duration-300 z-40",
@@ -70,7 +69,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Close Button for Mobile */}
           <div className="md:hidden p-4 border-b border-border">
             <button
               onClick={onClose}
@@ -80,33 +78,30 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </button>
           </div>
 
-          {/* Main Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1">
             {mainNav.map((item) => (
               <NavLink key={item.href} href={item.href} icon={item.icon} label={item.label} />
             ))}
 
-            {/* Authenticated-only nav */}
             {isAuthenticated && (
               <>
                 <div className="pt-2 pb-1 px-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tài khoản</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("sidebar.account")}</p>
                 </div>
-                <NavLink href="/history" icon={History} label="Lịch sử xem" />
-                <NavLink href="/playlists" icon={ListVideo} label="Danh sách phát" />
+                <NavLink href="/history" icon={History} label={t("nav.watchHistory")} />
+                <NavLink href="/playlists" icon={ListVideo} label={t("nav.playlists")} />
                 {user?.role === "admin" && (
                   <>
                     <div className="pt-2 pb-1 px-3">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quản trị</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("sidebar.admin")}</p>
                     </div>
-                    <NavLink href="/admin" icon={ShieldCheck} label="Admin Panel" />
+                    <NavLink href="/admin" icon={ShieldCheck} label={t("nav.adminPanel")} />
                   </>
                 )}
               </>
             )}
           </nav>
 
-          {/* Footer Navigation */}
           <div className="border-t border-border px-3 py-4 space-y-1">
             <Link
               href="/settings"
@@ -114,7 +109,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               className="flex items-center gap-4 px-3 py-2 text-foreground hover:bg-accent rounded-lg transition-colors"
             >
               <Settings className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">Cài đặt</span>
+              <span className="text-sm">{t("nav.settings")}</span>
             </Link>
             <Link
               href="/help"
@@ -122,7 +117,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               className="flex items-center gap-4 px-3 py-2 text-foreground hover:bg-accent rounded-lg transition-colors"
             >
               <HelpCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">Trợ giúp</span>
+              <span className="text-sm">{t("nav.help")}</span>
             </Link>
           </div>
         </div>

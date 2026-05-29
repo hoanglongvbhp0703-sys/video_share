@@ -1,8 +1,9 @@
 import { Video } from "@shared/types";
 import { Eye, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/useDateLocale";
 
 interface VideoCardProps {
   video: Video & { channelName?: string | null };
@@ -32,6 +33,8 @@ function formatDuration(seconds: number | null | undefined): string {
 
 export default function VideoCard({ video }: VideoCardProps) {
   const [, navigate] = useLocation();
+  const { t } = useTranslation();
+  const dateLocale = useDateLocale();
 
   const handleClick = () => {
     navigate(`/watch/${video.id}`);
@@ -52,7 +55,7 @@ export default function VideoCard({ video }: VideoCardProps) {
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-            <div className="text-primary/50">No thumbnail</div>
+            <div className="text-primary/50">{t("video.noThumbnail")}</div>
           </div>
         )}
 
@@ -66,14 +69,12 @@ export default function VideoCard({ video }: VideoCardProps) {
 
       {/* Video Info */}
       <div className="flex gap-3 px-0">
-        {/* Channel Avatar */}
         <div className="w-9 h-9 rounded-full bg-primary/20 flex-shrink-0 flex items-center justify-center">
           <span className="text-xs font-bold text-primary">
             {video.channelName?.charAt(0).toUpperCase() || "V"}
           </span>
         </div>
 
-        {/* Title and Metadata */}
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-sm text-foreground line-clamp-2 group-hover:text-primary transition-colors">
             {video.title}
@@ -82,12 +83,12 @@ export default function VideoCard({ video }: VideoCardProps) {
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
             <div className="flex items-center gap-1">
               <Eye className="w-3 h-3" />
-              <span>{formatViewCount(video.viewCount)} lượt xem</span>
+              <span>{formatViewCount(video.viewCount)} {t("video.views")}</span>
             </div>
             <span>•</span>
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span>{formatDistanceToNow(new Date(video.createdAt), { locale: vi, addSuffix: true })}</span>
+              <span>{formatDistanceToNow(new Date(video.createdAt), { locale: dateLocale, addSuffix: true })}</span>
             </div>
           </div>
         </div>

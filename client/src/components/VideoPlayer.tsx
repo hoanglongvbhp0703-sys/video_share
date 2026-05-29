@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface VideoPlayerProps {
   src: string;
@@ -11,6 +12,7 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { t } = useTranslation();
 
   // Check if src is empty or invalid
   const isValidSrc = src && src.trim() !== "";
@@ -35,7 +37,7 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
 
     const handleError = () => {
       setIsLoading(false);
-      setError("Không thể phát video. Vui lòng kiểm tra lại file video.");
+      setError(t("video.cantPlay"));
     };
 
     const handleLoadStart = () => {
@@ -62,7 +64,7 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
       {!isValidSrc ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
           <AlertCircle className="w-12 h-12 text-red-500" />
-          <p className="text-center">Không có video để phát</p>
+          <p className="text-center">{t("video.noVideo")}</p>
         </div>
       ) : (
         <>

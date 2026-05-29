@@ -9,14 +9,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Upload, Menu, User, Tv, History, Settings, LogOut, Bell, BellOff, Video, Users, MessageSquare, Info, CheckCheck } from "lucide-react";
+import { Search, Upload, Menu, User, Tv, History, Settings, LogOut, Bell, BellOff, Video, Users, MessageSquare, Info, CheckCheck, Globe } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
+import { LANGUAGES, type Language } from "@/lib/i18n";
+import { useDateLocale } from "@/lib/useDateLocale";
 
 interface TopNavigationProps {
   onSearchChange?: (query: string) => void;
@@ -25,19 +27,19 @@ interface TopNavigationProps {
 
 export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNavigationProps) {
   const { user, logout, isAuthenticated } = useAuth();
+  const { t, i18n } = useTranslation();
+  const dateLocale = useDateLocale();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [, navigate] = useLocation();
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // Debounce 300ms trước khi gọi API suggest
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Ẩn suggestions khi click ra ngoài
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
@@ -90,7 +92,6 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
     system: <Info className="w-3.5 h-3.5 text-gray-400" />,
   };
 
-  // Ẩn notification dropdown khi click ra ngoài
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -117,6 +118,8 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
     onSearchChange?.(title);
   };
 
+  const currentLang = LANGUAGES.find((l) => l.code === i18n.language) ?? LANGUAGES[0];
+
   return (
     <nav className="sticky top-0 z-50 bg-background border-b border-border shadow-sm">
       <div className="flex items-center justify-between h-16 px-4 gap-4">
@@ -142,7 +145,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
           <form onSubmit={handleSearch} className="flex w-full">
             <Input
               type="text"
-              placeholder="Tìm kiếm video..."
+              placeholder={t("topnav.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}
@@ -177,8 +180,8 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
           )}
         </div>
 
-        {/* Right: Upload and User Menu */}
-        <div className="flex items-center gap-2">
+        {/* Right: Upload, Bell, Language, User Menu */}
+        <div className="flex items-center gap-1">
           {isAuthenticated && (
             <>
               <Button
@@ -188,14 +191,15 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                 className="gap-2 text-foreground hover:bg-accent"
               >
                 <Upload className="w-5 h-5" />
-                <span className="hidden sm:inline">Upload</span>
+                <span className="hidden sm:inline">{t("topnav.upload")}</span>
               </Button>
+
               {/* Bell notification dropdown */}
               <div ref={notifRef} className="relative">
                 <button
                   onClick={() => setShowNotifications((v) => !v)}
                   className="relative p-2 hover:bg-accent rounded-full transition-colors"
-                  aria-label="Thông báo"
+                  aria-label={t("topnav.notifications")}
                 >
                   <Bell className="w-5 h-5 text-foreground" />
                   {(unreadCount ?? 0) > 0 && (
@@ -210,7 +214,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                       <div className="flex items-center gap-2">
                         <Bell className="w-4 h-4 text-foreground" />
-                        <span className="font-semibold text-sm text-popover-foreground">Thông báo</span>
+                        <span className="font-semibold text-sm text-popover-foreground">{t("topnav.notifications")}</span>
                         {(unreadCount ?? 0) > 0 && (
                           <span className="bg-primary text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
                             {unreadCount}
@@ -223,7 +227,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                           className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
                         >
                           <CheckCheck className="w-3.5 h-3.5" />
-                          Đọc hết
+                          {t("topnav.markAllRead")}
                         </button>
                       )}
                     </div>
@@ -232,7 +236,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                       {!notifications || notifications.length === 0 ? (
                         <div className="flex flex-col items-center py-10 gap-2">
                           <BellOff className="w-8 h-8 text-gray-200" />
-                          <p className="text-sm text-gray-400">Chưa có thông báo</p>
+                          <p className="text-sm text-gray-400">{t("topnav.noNotifications")}</p>
                         </div>
                       ) : (
                         notifications.map((n) => (
@@ -252,7 +256,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                                 {n.message}
                               </p>
                               <p className="text-[10px] text-gray-400 mt-0.5">
-                                {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: vi })}
+                                {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: dateLocale })}
                               </p>
                             </div>
                             {!n.isRead && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />}
@@ -266,7 +270,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                         onClick={() => { setShowNotifications(false); navigate("/notifications"); }}
                         className="w-full text-xs text-primary hover:text-primary/80 transition-colors py-1"
                       >
-                        Xem tất cả thông báo →
+                        {t("topnav.viewAllNotifications")}
                       </button>
                     </div>
                   </div>
@@ -274,6 +278,38 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
               </div>
             </>
           )}
+
+          {/* Language switcher */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 p-2 hover:bg-accent rounded-full transition-colors text-sm text-foreground">
+                <Globe className="w-4 h-4" />
+                <span className="hidden md:inline text-xs font-medium">{currentLang.flag}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {t("topnav.language")}
+              </div>
+              <DropdownMenuSeparator />
+              {LANGUAGES.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.code}
+                  onClick={() => i18n.changeLanguage(lang.code)}
+                  className={cn(
+                    "cursor-pointer flex items-center gap-2",
+                    i18n.language === lang.code && "bg-accent font-medium"
+                  )}
+                >
+                  <span className="text-base">{lang.flag}</span>
+                  <span className="text-sm">{lang.label}</span>
+                  {i18n.language === lang.code && (
+                    <span className="ml-auto text-primary text-xs">✓</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {isAuthenticated ? (
             <DropdownMenu>
@@ -287,7 +323,6 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 py-2">
-                {/* User info header */}
                 <div className="px-4 py-3 flex items-center gap-3">
                   <Avatar className="w-10 h-10 flex-shrink-0">
                     <AvatarFallback className="bg-primary text-white font-bold">
@@ -305,21 +340,21 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
 
                 <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
                   <User className="w-4 h-4 text-gray-500" />
-                  <span>Hồ sơ của tôi</span>
+                  <span>{t("topnav.myProfile")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/channel")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
                   <Tv className="w-4 h-4 text-gray-500" />
-                  <span>Kênh của tôi</span>
+                  <span>{t("topnav.myChannel")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/history")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
                   <History className="w-4 h-4 text-gray-500" />
-                  <span>Lịch sử xem</span>
+                  <span>{t("topnav.watchHistory")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer flex items-center gap-3 px-4 py-2">
                   <Settings className="w-4 h-4 text-gray-500" />
-                  <span>Cài đặt</span>
+                  <span>{t("topnav.settings")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
 
@@ -328,17 +363,17 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
                   className="cursor-pointer flex items-center gap-3 px-4 py-2 text-red-600 focus:text-red-600"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Đăng xuất</span>
+                  <span>{t("topnav.logout")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate("/register")}>
-                Đăng ký
+                {t("topnav.register")}
               </Button>
               <Button variant="default" size="sm" onClick={() => navigate("/login")}>
-                Đăng nhập
+                {t("topnav.login")}
               </Button>
             </div>
           )}
@@ -351,7 +386,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
           <div className="flex w-full">
             <Input
               type="text"
-              placeholder="Tìm kiếm..."
+              placeholder={t("topnav.searchPlaceholderMobile")}
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}

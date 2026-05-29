@@ -4,15 +4,19 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, Lock, LogOut, Moon, Sun } from "lucide-react";
+import { User, Lock, LogOut, Moon, Sun, Globe } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useTranslation } from "react-i18next";
+import { LANGUAGES } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export default function Settings() {
   const { user, isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme, switchable } = useTheme();
+  const { t, i18n } = useTranslation();
 
   const [name, setName] = useState(user?.name || "");
   const [bio, setBio] = useState((user as any)?.bio || "");
@@ -24,7 +28,7 @@ export default function Settings() {
 
   const updateProfile = trpc.users.updateProfile.useMutation({
     onSuccess: () => {
-      toast.success("Đã cập nhật hồ sơ");
+      toast.success(t("settings.profileUpdated"));
       utils.auth.me.invalidate();
       utils.users.getMyProfile.invalidate();
     },
@@ -33,7 +37,7 @@ export default function Settings() {
 
   const changePassword = trpc.users.changePassword.useMutation({
     onSuccess: () => {
-      toast.success("Đã đổi mật khẩu thành công");
+      toast.success(t("settings.passwordChanged"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -46,12 +50,12 @@ export default function Settings() {
       <Layout>
         <div className="p-6 max-w-2xl mx-auto text-center py-16">
           <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Bạn chưa đăng nhập</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("settings.notLoggedIn")}</h2>
           <a
             href={getLoginUrl()}
             className="inline-flex items-center px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors"
           >
-            Đăng nhập
+            {t("settings.loginBtn")}
           </a>
         </div>
       </Layout>
@@ -63,18 +67,17 @@ export default function Settings() {
     const trimmedName = name.trim();
     if (!trimmedName) return;
     const trimmedBio = bio.trim();
-    // Luôn gửi name để channel name đồng bộ với tên tài khoản
     updateProfile.mutate({ name: trimmedName, bio: trimmedBio });
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast.error("Mật khẩu mới không khớp");
+      toast.error(t("settings.errorPasswordMismatch"));
       return;
     }
     if (newPassword.length < 6) {
-      toast.error("Mật khẩu phải ít nhất 6 ký tự");
+      toast.error(t("settings.errorPasswordTooShort"));
       return;
     }
     changePassword.mutate({ currentPassword, newPassword });
@@ -83,7 +86,7 @@ export default function Settings() {
   return (
     <Layout>
       <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Cài đặt tài khoản</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("settings.title")}</h1>
 
         {/* User info header */}
         <div className="flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -93,82 +96,78 @@ export default function Settings() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold text-gray-900 text-lg">{user?.name || "Người dùng"}</p>
+            <p className="font-semibold text-gray-900 text-lg">{user?.name || t("settings.user")}</p>
             <p className="text-sm text-gray-500">{user?.email || ""}</p>
           </div>
         </div>
 
-        {/* Đổi tên */}
+        {/* Profile section */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <User className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-gray-900">Thông tin cơ bản</h2>
+            <h2 className="text-base font-semibold text-gray-900">{t("settings.profileSection")}</h2>
           </div>
           <form onSubmit={handleUpdateProfile} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tên hiển thị</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("settings.displayName")}</label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Tên hiển thị"
+                placeholder={t("settings.displayName")}
                 maxLength={100}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Giới thiệu bản thân</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("settings.bio")}</label>
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                placeholder="Viết vài dòng giới thiệu về bạn..."
+                placeholder={t("settings.bioPlaceholder")}
                 maxLength={500}
                 rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
               />
               <p className="text-xs text-gray-400 mt-1 text-right">{bio.length}/500</p>
             </div>
-            <Button
-              type="submit"
-              disabled={updateProfile.isPending}
-              size="sm"
-            >
-              {updateProfile.isPending ? "Đang lưu..." : "Lưu thay đổi"}
+            <Button type="submit" disabled={updateProfile.isPending} size="sm">
+              {updateProfile.isPending ? t("settings.saving") : t("settings.saveChanges")}
             </Button>
           </form>
         </div>
 
-        {/* Đổi mật khẩu */}
+        {/* Change password */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <Lock className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-gray-900">Đổi mật khẩu</h2>
+            <h2 className="text-base font-semibold text-gray-900">{t("settings.passwordSection")}</h2>
           </div>
           <form onSubmit={handleChangePassword} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu hiện tại</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("settings.currentPassword")}</label>
               <Input
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Mật khẩu hiện tại"
+                placeholder={t("settings.currentPassword")}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("settings.newPassword")}</label>
               <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Tối thiểu 6 ký tự"
+                placeholder={t("settings.newPasswordPlaceholder")}
                 minLength={6}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Xác nhận mật khẩu mới</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("settings.confirmPassword")}</label>
               <Input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Nhập lại mật khẩu mới"
+                placeholder={t("settings.confirmPasswordPlaceholder")}
               />
             </div>
             <Button
@@ -176,12 +175,38 @@ export default function Settings() {
               disabled={changePassword.isPending || !currentPassword || !newPassword || !confirmPassword}
               size="sm"
             >
-              {changePassword.isPending ? "Đang đổi..." : "Đổi mật khẩu"}
+              {changePassword.isPending ? t("settings.changingPassword") : t("settings.changePassword")}
             </Button>
           </form>
         </div>
 
-        {/* Giao diện — dark mode */}
+        {/* Language */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Globe className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-semibold text-gray-900">{t("settings.languageSection")}</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-3">{t("settings.languageDesc")}</p>
+          <div className="flex flex-wrap gap-2">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => i18n.changeLanguage(lang.code)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-colors",
+                  i18n.language === lang.code
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-primary/50 hover:bg-primary/5"
+                )}
+              >
+                <span className="text-base">{lang.flag}</span>
+                {lang.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Appearance — dark mode */}
         {switchable && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-4">
@@ -190,12 +215,12 @@ export default function Settings() {
               ) : (
                 <Sun className="w-5 h-5 text-primary" />
               )}
-              <h2 className="text-base font-semibold text-gray-900">Giao diện</h2>
+              <h2 className="text-base font-semibold text-gray-900">{t("settings.appearanceSection")}</h2>
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900">Chế độ tối</p>
-                <p className="text-xs text-gray-500 mt-0.5">Chuyển sang nền tối để dễ xem hơn ban đêm</p>
+                <p className="text-sm font-medium text-gray-900">{t("settings.darkMode")}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t("settings.darkModeDesc")}</p>
               </div>
               <button
                 onClick={toggleTheme}
@@ -215,14 +240,14 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Đăng xuất */}
+        {/* Account / Logout */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <LogOut className="w-5 h-5 text-red-500" />
-            <h2 className="text-base font-semibold text-gray-900">Tài khoản</h2>
+            <h2 className="text-base font-semibold text-gray-900">{t("settings.accountSection")}</h2>
           </div>
           <Button variant="destructive" size="sm" onClick={() => logout()}>
-            Đăng xuất
+            {t("settings.logoutBtn")}
           </Button>
         </div>
       </div>

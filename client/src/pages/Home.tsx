@@ -4,6 +4,7 @@ import VideoCard from "@/components/VideoCard";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Video } from "@shared/types";
+import { useTranslation } from "react-i18next";
 
 interface VideoWithChannel extends Video {
   channelName?: string;
@@ -12,6 +13,7 @@ interface VideoWithChannel extends Video {
 export default function Home() {
   const [videos, setVideos] = useState<VideoWithChannel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { t } = useTranslation();
 
   const { data: videoList, isLoading: isFetching } = trpc.videos.list.useQuery({
     limit: 20,
@@ -31,8 +33,8 @@ export default function Home() {
         <div className="p-4 md:p-6">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">Khám phá</h1>
-            <p className="text-muted-foreground text-sm mt-1">Những video được xem nhiều nhất</p>
+            <h1 className="text-2xl font-bold text-foreground">{t("home.discover")}</h1>
+            <p className="text-muted-foreground text-sm mt-1">{t("home.subtitle")}</p>
           </div>
 
           {/* Video Grid */}
@@ -60,8 +62,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12">
-              <p className="text-gray-600 text-lg">Chưa có video nào</p>
-              <p className="text-gray-500 text-sm mt-2">Hãy quay lại sau</p>
+              <p className="text-gray-600 text-lg">{t("home.noVideos")}</p>
             </div>
           )}
         </div>

@@ -1,3 +1,4 @@
+import "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import { UNAUTHED_ERR_MSG, SESSION_TOKEN_KEY } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

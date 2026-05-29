@@ -3,8 +3,10 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useSearch } from "wouter";
+import { useTranslation } from "react-i18next";
 
 export default function ResetPassword() {
+  const { t } = useTranslation();
   const [, navigate] = useLocation();
   const search = useSearch();
   const token = new URLSearchParams(search).get("token") ?? "";
@@ -19,9 +21,9 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm text-center space-y-4">
-          <p className="text-red-600 font-medium">Link không hợp lệ hoặc đã hết hạn.</p>
+          <p className="text-red-600 font-medium">{t("auth.invalidLink")}</p>
           <Link href="/forgot-password">
-            <Button className="w-full">Yêu cầu link mới</Button>
+            <Button className="w-full">{t("auth.requestNewLink")}</Button>
           </Link>
         </div>
       </div>
@@ -31,11 +33,11 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự");
+      setError(t("auth.errorPasswordTooShort"));
       return;
     }
     if (password !== confirm) {
-      setError("Mật khẩu xác nhận không khớp");
+      setError(t("auth.errorPasswordMismatch"));
       return;
     }
     setError("");
@@ -54,14 +56,14 @@ export default function ResetPassword() {
         setDone(true);
         setTimeout(() => navigate("/login"), 2500);
       } else if (data?.error === "TOKEN_EXPIRED") {
-        setError("Link đã hết hạn. Vui lòng yêu cầu link mới.");
+        setError(t("auth.errorTokenExpired"));
       } else if (data?.error === "TOKEN_USED") {
-        setError("Link này đã được sử dụng. Vui lòng yêu cầu link mới.");
+        setError(t("auth.errorTokenUsed"));
       } else {
-        setError(data?.message || "Link không hợp lệ hoặc đã hết hạn");
+        setError(data?.message || t("auth.invalidLink"));
       }
     } catch {
-      setError("Không thể kết nối đến server");
+      setError(t("auth.errorCantConnect"));
     } finally {
       setLoading(false);
     }
@@ -74,28 +76,28 @@ export default function ResetPassword() {
           <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-3">
             <span className="text-white text-2xl font-bold">VS</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Đặt lại mật khẩu</h1>
-          <p className="text-gray-500 text-sm mt-1">Nhập mật khẩu mới cho tài khoản của bạn</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("auth.resetPasswordTitle")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t("auth.resetPasswordSubtitle")}</p>
         </div>
 
         {done ? (
           <div className="space-y-4">
             <div className="p-4 bg-green-50 rounded-lg text-sm text-green-700 text-center">
-              Mật khẩu đã được đặt lại thành công! Đang chuyển về trang đăng nhập...
+              {t("auth.resetSuccess")}
             </div>
             <Link href="/login">
-              <Button className="w-full">Đăng nhập ngay</Button>
+              <Button className="w-full">{t("auth.loginNow")}</Button>
             </Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mật khẩu mới
+                {t("auth.newPassword")}
               </label>
               <Input
                 type="password"
-                placeholder="Tối thiểu 6 ký tự"
+                placeholder={t("auth.newPasswordPlaceholder")}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(""); }}
                 disabled={loading}
@@ -106,11 +108,11 @@ export default function ResetPassword() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Xác nhận mật khẩu
+                {t("auth.confirmPassword")}
               </label>
               <Input
                 type="password"
-                placeholder="Nhập lại mật khẩu"
+                placeholder={t("auth.confirmPasswordPlaceholder")}
                 value={confirm}
                 onChange={(e) => { setConfirm(e.target.value); setError(""); }}
                 disabled={loading}
@@ -121,10 +123,10 @@ export default function ResetPassword() {
             {error && (
               <div className="space-y-2">
                 <p className="text-sm text-red-600">{error}</p>
-                {(error.includes("hết hạn") || error.includes("đã được sử dụng")) && (
+                {(error === t("auth.errorTokenExpired") || error === t("auth.errorTokenUsed")) && (
                   <Link href="/forgot-password">
                     <button type="button" className="text-sm text-primary hover:underline">
-                      Yêu cầu link mới →
+                      {t("auth.requestNewLink")} →
                     </button>
                   </Link>
                 )}
@@ -137,7 +139,7 @@ export default function ResetPassword() {
               size="lg"
               disabled={loading || !password || !confirm}
             >
-              {loading ? "Đang lưu..." : "Đặt lại mật khẩu"}
+              {loading ? t("auth.resetPasswordLoading") : t("auth.resetPasswordSubmit")}
             </Button>
           </form>
         )}
