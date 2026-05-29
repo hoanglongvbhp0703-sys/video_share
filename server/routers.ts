@@ -70,7 +70,7 @@ export const appRouter = router({
     me: publicProcedure.query(opts => {
       if (!opts.ctx.user) return null;
       // Strip password hash — never send to client
-      const { password: _pw, ...safeUser } = opts.ctx.user;
+      const { passwordHash: _pw, ...safeUser } = opts.ctx.user;
       return safeUser;
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -273,7 +273,7 @@ export const appRouter = router({
       .query(({ input }) => getUsersByIds(input.ids)),
 
     getMyProfile: protectedProcedure.query(async ({ ctx }) => {
-      const { password: _pw, ...user } = ctx.user;
+      const { passwordHash: _pw, ...user } = ctx.user;
       const channel = await getOrCreateChannel(ctx.user.id, ctx.user.name || "User");
       const videoCount = await getChannelVideoCount(channel.id);
       return {

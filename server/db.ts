@@ -847,36 +847,82 @@ export async function getTagsByVideoId(videoId: number) {
     .where(eq(videoTags.videoId, videoId));
 }
 
+// Maps sidebar tag slugs → videos.category values
+const CATEGORY_TAG_MAP: Record<string, string> = {
+  nhac: "music",
+  gaming: "gaming",
+  phim: "movies",
+  live: "live",
+  "the-thao": "sports",
+  "tin-tuc": "news",
+};
+
+const VIDEO_SELECT_FIELDS = {
+  id: videos.id,
+  channelId: videos.channelId,
+  title: videos.title,
+  description: videos.description,
+  videoUrl: videos.videoUrl,
+  thumbnailUrl: videos.thumbnailUrl,
+  duration: videos.duration,
+  viewCount: videos.viewCount,
+  likeCount: videos.likeCount,
+  dislikeCount: videos.dislikeCount,
+  commentCount: videos.commentCount,
+  category: videos.category,
+  isPublished: videos.isPublished,
+  createdAt: videos.createdAt,
+  updatedAt: videos.updatedAt,
+  channelName: channels.name,
+};
+
 export async function getVideosByTag(tagName: string, limit: number = 20, offset: number = 0) {
   const db = await getDb();
   if (!db) return [];
-  return db
-    .select({
-      id: videos.id,
-      channelId: videos.channelId,
-      title: videos.title,
-      description: videos.description,
-      videoUrl: videos.videoUrl,
-      thumbnailUrl: videos.thumbnailUrl,
-      duration: videos.duration,
-      viewCount: videos.viewCount,
-      likeCount: videos.likeCount,
-      dislikeCount: videos.dislikeCount,
-      commentCount: videos.commentCount,
-      category: videos.category,
-      isPublished: videos.isPublished,
-      createdAt: videos.createdAt,
-      updatedAt: videos.updatedAt,
-      channelName: channels.name,
-    })
+
+  const slug = tagName.toLowerCase();
+
+  // "hot" slug → top viewed videos (no tags/category lookup needed)
+  if (slug === "hot") {
+    return db
+      .select(VIDEO_SELECT_FIELDS)
+      .from(videos)
+      .leftJoin(channels, eq(videos.channelId, channels.id))
+      .where(eq(videos.isPublished, true))
+      .orderBy(desc(videos.viewCount), desc(videos.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  const tagVideos = await db
+    .select(VIDEO_SELECT_FIELDS)
     .from(videoTags)
     .innerJoin(tags, eq(videoTags.tagId, tags.id))
     .innerJoin(videos, eq(videoTags.videoId, videos.id))
     .leftJoin(channels, eq(videos.channelId, channels.id))
-    .where(and(eq(tags.name, tagName.toLowerCase()), eq(videos.isPublished, true)))
+    .where(and(eq(tags.name, slug), eq(videos.isPublished, true)))
     .orderBy(desc(videos.createdAt))
     .limit(limit)
     .offset(offset);
+
+  const categoryValue = CATEGORY_TAG_MAP[slug];
+  if (!categoryValue) return tagVideos;
+
+  const categoryVideos = await db
+    .select(VIDEO_SELECT_FIELDS)
+    .from(videos)
+    .leftJoin(channels, eq(videos.channelId, channels.id))
+    .where(and(eq(videos.category, categoryValue), eq(videos.isPublished, true)))
+    .orderBy(desc(videos.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  // Merge and deduplicate by id
+  const seen = new Set<number>();
+  return [...tagVideos, ...categoryVideos]
+    .filter(v => { if (seen.has(v.id)) return false; seen.add(v.id); return true; })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit);
 }
 
 // ─── Admin queries ────────────────────────────────────────────────────────────
@@ -1002,5 +1048,5 @@ export async function markPasswordResetUsed(id: number) {
 export async function updateUserPassword(userId: number, passwordHash: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(users).set({ password: passwordHash }).where(eq(users.id, userId));
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
 }
