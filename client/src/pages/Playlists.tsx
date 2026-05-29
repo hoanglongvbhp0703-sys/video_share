@@ -17,11 +17,14 @@ import { getLoginUrl } from "@/const";
 import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { vi } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/useDateLocale";
 
 export default function Playlists() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
+  const { t } = useTranslation();
+  const dateLocale = useDateLocale();
 
   const { data: playlists, isLoading } = trpc.playlists.getMyPlaylists.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -34,7 +37,7 @@ export default function Playlists() {
 
   const createPlaylist = trpc.playlists.create.useMutation({
     onSuccess: () => {
-      toast.success("Đã tạo danh sách phát");
+      toast.success(t("playlists.createdSuccess"));
       utils.playlists.getMyPlaylists.invalidate();
       setCreateOpen(false);
       setNewName("");
@@ -46,7 +49,7 @@ export default function Playlists() {
 
   const deletePlaylist = trpc.playlists.delete.useMutation({
     onSuccess: () => {
-      toast.success("Đã xóa danh sách phát");
+      toast.success(t("playlists.deletedSuccess"));
       utils.playlists.getMyPlaylists.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -57,13 +60,13 @@ export default function Playlists() {
       <Layout>
         <div className="p-6 max-w-2xl mx-auto text-center py-16">
           <ListVideo className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Bạn chưa đăng nhập</h2>
-          <p className="text-gray-500 mb-6">Đăng nhập để quản lý danh sách phát.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("playlists.notLoggedIn")}</h2>
+          <p className="text-gray-500 mb-6">{t("playlists.notLoggedInDesc")}</p>
           <a
             href={getLoginUrl()}
             className="inline-flex items-center px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors"
           >
-            Đăng nhập
+            {t("playlists.login")}
           </a>
         </div>
       </Layout>
@@ -76,19 +79,19 @@ export default function Playlists() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ListVideo className="w-5 h-5 text-gray-700" />
-            <h1 className="text-xl font-bold text-gray-900">Danh sách phát của tôi</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t("playlists.title")}</h1>
           </div>
 
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
                 <Plus className="w-4 h-4" />
-                Tạo mới
+                {t("playlists.createNew")}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Tạo danh sách phát mới</DialogTitle>
+                <DialogTitle>{t("playlists.createTitle")}</DialogTitle>
               </DialogHeader>
               <form
                 onSubmit={(e) => {
@@ -99,21 +102,21 @@ export default function Playlists() {
                 className="space-y-4 mt-2"
               >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên danh sách *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("playlists.nameLabel")}</label>
                   <Input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Ví dụ: Video yêu thích"
+                    placeholder={t("playlists.namePlaceholder")}
                     maxLength={255}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("playlists.descLabel")}</label>
                   <textarea
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Mô tả ngắn (tùy chọn)"
+                    placeholder={t("playlists.descPlaceholder")}
                     maxLength={1000}
                     rows={3}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
@@ -126,13 +129,13 @@ export default function Playlists() {
                     className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
                   >
                     {newIsPublic
-                      ? <><Globe className="w-4 h-4 text-green-500" /> Công khai</>
-                      : <><Lock className="w-4 h-4 text-gray-400" /> Riêng tư</>
+                      ? <><Globe className="w-4 h-4 text-green-500" /> {t("playlists.public")}</>
+                      : <><Lock className="w-4 h-4 text-gray-400" /> {t("playlists.private")}</>
                     }
                   </button>
                 </div>
                 <Button type="submit" disabled={createPlaylist.isPending || !newName.trim()} className="w-full">
-                  {createPlaylist.isPending ? "Đang tạo..." : "Tạo danh sách phát"}
+                  {createPlaylist.isPending ? t("playlists.creating") : t("playlists.create")}
                 </Button>
               </form>
             </DialogContent>
@@ -152,10 +155,10 @@ export default function Playlists() {
         ) : !playlists || playlists.length === 0 ? (
           <div className="text-center py-16">
             <ListVideo className="w-14 h-14 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">Chưa có danh sách phát nào.</p>
+            <p className="text-gray-500 text-sm mb-4">{t("playlists.noPlaylists")}</p>
             <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" />
-              Tạo danh sách phát đầu tiên
+              {t("playlists.createFirst")}
             </Button>
           </div>
         ) : (
@@ -169,7 +172,7 @@ export default function Playlists() {
                       : <ListVideo className="w-12 h-12 text-primary/30" />
                     }
                     <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-                      {playlist.videoCount} video
+                      {playlist.videoCount} {t("playlists.videos")}
                     </div>
                   </div>
                 </Link>
@@ -183,16 +186,16 @@ export default function Playlists() {
                   <div className="flex items-center justify-between mt-3">
                     <span className="flex items-center gap-1 text-xs text-gray-400">
                       {playlist.isPublic
-                        ? <><Globe className="w-3 h-3" /> Công khai</>
-                        : <><Lock className="w-3 h-3" /> Riêng tư</>
+                        ? <><Globe className="w-3 h-3" /> {t("playlists.public")}</>
+                        : <><Lock className="w-3 h-3" /> {t("playlists.private")}</>
                       }
                     </span>
                     <span className="text-xs text-gray-400">
-                      {format(new Date(playlist.createdAt), "dd/MM/yyyy", { locale: vi })}
+                      {format(new Date(playlist.createdAt), "dd/MM/yyyy", { locale: dateLocale })}
                     </span>
                     <button
                       onClick={() => {
-                        if (confirm(`Xóa danh sách "${playlist.name}"?`)) {
+                        if (confirm(t("playlists.confirmDelete", { name: playlist.name }))) {
                           deletePlaylist.mutate({ id: playlist.id });
                         }
                       }}

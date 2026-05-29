@@ -4,22 +4,35 @@ import VideoCard from "@/components/VideoCard";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, Music, Gamepad2, Film, Tv, Trophy, Newspaper, Tag } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
-const TAG_META: Record<string, { label: string; icon: React.ElementType; description: string }> = {
-  hot:       { label: "Hot 🔥", icon: Flame,     description: "Những video đang được xem nhiều nhất" },
-  nhac:      { label: "Âm nhạc", icon: Music,    description: "Video âm nhạc, MV, cover và biểu diễn" },
-  gaming:    { label: "Gaming",   icon: Gamepad2, description: "Game, review, gameplay và esports" },
-  phim:      { label: "Phim",     icon: Film,     description: "Phim, trailer, review và điện ảnh" },
-  live:      { label: "Trực tiếp", icon: Tv,      description: "Stream trực tiếp và highlight" },
-  "the-thao":{ label: "Thể thao", icon: Trophy,   description: "Bóng đá, thể thao và thể dục" },
-  "tin-tuc": { label: "Tin tức",  icon: Newspaper, description: "Tin tức, thời sự và phân tích" },
+const TAG_ICONS: Record<string, React.ElementType> = {
+  hot:        Flame,
+  nhac:       Music,
+  gaming:     Gamepad2,
+  phim:       Film,
+  live:       Tv,
+  "the-thao": Trophy,
+  "tin-tuc":  Newspaper,
+};
+
+const TAG_I18N_KEYS: Record<string, { label: string; desc: string }> = {
+  hot:        { label: "tag.hot",      desc: "tag.descHot" },
+  nhac:       { label: "tag.nhac",     desc: "tag.descNhac" },
+  gaming:     { label: "tag.gaming",   desc: "tag.descGaming" },
+  phim:       { label: "tag.phim",     desc: "tag.descPhim" },
+  live:       { label: "tag.live",     desc: "tag.descLive" },
+  "the-thao": { label: "tag.theThao",  desc: "tag.descTheThao" },
+  "tin-tuc":  { label: "tag.tinTuc",   desc: "tag.descTinTuc" },
 };
 
 export default function TagPage() {
   const { name } = useParams<{ name: string }>();
   const tag = name || "";
-  const meta = TAG_META[tag];
-  const IconComponent = meta?.icon ?? Tag;
+  const { t } = useTranslation();
+
+  const IconComponent = TAG_ICONS[tag] ?? Tag;
+  const i18nKeys = TAG_I18N_KEYS[tag];
 
   const { data: videos, isLoading } = trpc.tags.getVideosByTag.useQuery(
     { tag, limit: 40, offset: 0 },
@@ -29,15 +42,16 @@ export default function TagPage() {
   return (
     <Layout>
       <div className="p-4 md:p-6">
-        {/* Header */}
         <div className="mb-6 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
             <IconComponent className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{meta?.label ?? `#${tag}`}</h1>
-            {meta?.description && (
-              <p className="text-gray-500 text-sm mt-0.5">{meta.description}</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {i18nKeys ? t(i18nKeys.label) : `#${tag}`}
+            </h1>
+            {i18nKeys && (
+              <p className="text-gray-500 text-sm mt-0.5">{t(i18nKeys.desc)}</p>
             )}
           </div>
         </div>
@@ -60,7 +74,7 @@ export default function TagPage() {
           </div>
         ) : videos && videos.length > 0 ? (
           <>
-            <p className="text-sm text-gray-400 mb-4">{videos.length} video</p>
+            <p className="text-sm text-gray-400 mb-4">{t("tag.videoCount", { count: videos.length })}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {videos.map((video) => (
                 <VideoCard key={video.id} video={video} />
@@ -70,9 +84,9 @@ export default function TagPage() {
         ) : (
           <div className="flex flex-col items-center justify-center py-16">
             <Tag className="w-14 h-14 text-gray-200 mb-3" />
-            <p className="text-gray-500 text-sm">Chưa có video nào với tag này.</p>
+            <p className="text-gray-500 text-sm">{t("tag.noVideos")}</p>
             <Link href="/" className="mt-3 text-sm text-primary hover:underline">
-              Khám phá tất cả video →
+              {t("tag.exploreAll")}
             </Link>
           </div>
         )}

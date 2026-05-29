@@ -7,6 +7,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Video, Users, Send, Square, Radio } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -26,6 +27,7 @@ function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 8000): Promise<vo
 export default function GoLive() {
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const { t } = useTranslation();
 
   const [title, setTitle] = useState("");
   const [isLive, setIsLive] = useState(false);
@@ -126,7 +128,7 @@ export default function GoLive() {
   };
 
   const handleStart = async () => {
-    if (!title.trim()) { toast.error("Vui lòng nhập tiêu đề"); return; }
+    if (!title.trim()) { toast.error(t("golive.titleRequired")); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStream.current = stream;
@@ -137,12 +139,12 @@ export default function GoLive() {
       const result = await startMutation.mutateAsync({ title: title.trim() });
       setLivestreamId(result.id);
       setIsLive(true);
-      toast.success("Đã bắt đầu phát trực tiếp!");
+      toast.success(t("golive.startedLive"));
     } catch (err: any) {
       toast.error(
         err.name === "NotAllowedError"
-          ? "Cần cấp quyền camera và microphone"
-          : `Lỗi: ${err.message}`
+          ? t("golive.cameraError")
+          : `${err.message}`
       );
     }
   };
@@ -161,7 +163,7 @@ export default function GoLive() {
     setLastChatId(0);
     setLastSignalId(0);
     processedSignals.current.clear();
-    toast.success("Đã kết thúc livestream");
+    toast.success(t("golive.endedLive"));
   };
 
   const handleSendChat = async () => {
@@ -176,8 +178,8 @@ export default function GoLive() {
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-3">
-            <p className="text-muted-foreground">Vui lòng đăng nhập để phát trực tiếp.</p>
-            <Button onClick={() => navigate("/login")}>Đăng nhập</Button>
+            <p className="text-muted-foreground">{t("golive.loginRequired")}</p>
+            <Button onClick={() => navigate("/login")}>{t("golive.login")}</Button>
           </div>
         </div>
       </Layout>
@@ -187,10 +189,9 @@ export default function GoLive() {
   return (
     <Layout>
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
-        {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Radio className="w-6 h-6 text-red-500" />
-          <h1 className="text-2xl font-bold text-foreground">Phát trực tiếp</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("golive.title")}</h1>
           {isLive && (
             <span className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
               <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
@@ -200,7 +201,6 @@ export default function GoLive() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Camera preview + controls */}
           <div className="lg:col-span-2 space-y-4">
             <div className="relative bg-black rounded-xl overflow-hidden aspect-video">
               <video
@@ -213,7 +213,7 @@ export default function GoLive() {
               {!isLive && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 gap-3">
                   <Video className="w-14 h-14" />
-                  <p className="text-sm">Camera preview sẽ hiện ở đây</p>
+                  <p className="text-sm">{t("golive.cameraPreview")}</p>
                 </div>
               )}
               {isLive && (
@@ -233,7 +233,7 @@ export default function GoLive() {
             {!isLive ? (
               <div className="space-y-3">
                 <Input
-                  placeholder="Tiêu đề livestream..."
+                  placeholder={t("golive.titlePlaceholder")}
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleStart()}
@@ -247,7 +247,7 @@ export default function GoLive() {
                   size="lg"
                 >
                   <Radio className="w-4 h-4" />
-                  {startMutation.isPending ? "Đang bắt đầu..." : "Bắt đầu phát trực tiếp"}
+                  {startMutation.isPending ? t("golive.starting") : t("golive.start")}
                 </Button>
               </div>
             ) : (
@@ -256,7 +256,7 @@ export default function GoLive() {
                   <p className="font-semibold text-foreground">{title}</p>
                   <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
                     <Users className="w-4 h-4" />
-                    {viewerCount} người đang xem
+                    {viewerCount} {t("golive.watching")}
                   </p>
                 </div>
                 <Button
@@ -266,7 +266,7 @@ export default function GoLive() {
                   className="gap-2"
                 >
                   <Square className="w-4 h-4" />
-                  Kết thúc
+                  {t("golive.end")}
                 </Button>
               </div>
             )}
@@ -276,12 +276,12 @@ export default function GoLive() {
           <div className="flex flex-col bg-card border border-border rounded-xl overflow-hidden h-[500px] lg:h-auto lg:max-h-[560px]">
             <div className="px-4 py-3 border-b border-border flex items-center gap-2">
               <span className="w-2 h-2 bg-red-500 rounded-full" />
-              <p className="font-semibold text-sm text-foreground">Chat trực tiếp</p>
+              <p className="font-semibold text-sm text-foreground">{t("golive.liveChat")}</p>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
               {chats.length === 0 && (
-                <p className="text-center text-muted-foreground text-sm py-8">Chưa có tin nhắn</p>
+                <p className="text-center text-muted-foreground text-sm py-8">{t("golive.noChats")}</p>
               )}
               {chats.map(c => (
                 <div key={c.id} className="text-sm">
@@ -294,7 +294,7 @@ export default function GoLive() {
 
             <div className="p-3 border-t border-border flex gap-2">
               <Input
-                placeholder={isLive ? "Nhắn gì đó..." : "Bắt đầu stream để chat"}
+                placeholder={isLive ? t("golive.chatPlaceholder") : t("golive.chatDisabled")}
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSendChat()}

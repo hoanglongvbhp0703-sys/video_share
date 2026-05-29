@@ -8,6 +8,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation, useParams, Link } from "wouter";
 import { toast } from "sonner";
 import { Users, Send, Loader2, WifiOff, Radio } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -30,6 +31,7 @@ export default function LiveWatch() {
   const { channelId } = useParams<{ channelId: string }>();
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const { t } = useTranslation();
 
   const [connState, setConnState] = useState<ConnState>("idle");
   const [chatInput, setChatInput] = useState("");
@@ -66,13 +68,11 @@ export default function LiveWatch() {
     { enabled: !!livestream, refetchInterval: 2000, staleTime: 0 }
   );
 
-  // Khởi tạo WebRTC khi livestream xuất hiện và user đã đăng nhập
   useEffect(() => {
     if (!livestream || !isAuthenticated || !user || offerSent || pcRef.current) return;
     initPeerConnection();
   }, [livestream?.id, isAuthenticated, user?.id]);
 
-  // Nhận answer từ streamer
   useEffect(() => {
     if (!signals?.length || !pcRef.current) return;
     for (const sig of signals) {
@@ -100,7 +100,6 @@ export default function LiveWatch() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chats]);
 
-  // Dọn dẹp khi rời trang
   useEffect(() => {
     return () => {
       pcRef.current?.close();
@@ -146,14 +145,13 @@ export default function LiveWatch() {
     setOfferSent(false);
     setLastSignalId(0);
     setConnState("idle");
-    // useEffect sẽ tự kích hoạt lại khi offerSent = false
     setTimeout(() => initPeerConnection(), 100);
   };
 
   const handleSendChat = async () => {
     const msg = chatInput.trim();
     if (!msg || !livestream) return;
-    if (!isAuthenticated) { toast.error("Đăng nhập để chat"); return; }
+    if (!isAuthenticated) { toast.error(t("livewatch.loginToChat")); return; }
     setChatInput("");
     await sendChatMutation.mutateAsync({ livestreamId: livestream.id, message: msg });
   };
@@ -173,9 +171,9 @@ export default function LiveWatch() {
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <WifiOff className="w-14 h-14 text-muted-foreground/40" />
-          <p className="text-muted-foreground text-lg">Kênh này hiện không có livestream.</p>
+          <p className="text-muted-foreground text-lg">{t("livewatch.noLivestream")}</p>
           <Button variant="outline" onClick={() => navigate(`/channel/${channelId}`)}>
-            Xem kênh
+            {t("livewatch.viewChannel")}
           </Button>
         </div>
       </Layout>
@@ -186,9 +184,7 @@ export default function LiveWatch() {
     <Layout>
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Video + thông tin stream */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Player */}
             <div className="relative bg-black rounded-xl overflow-hidden aspect-video">
               <video
                 ref={videoRef}
@@ -200,17 +196,17 @@ export default function LiveWatch() {
               {connState === "connecting" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 bg-black/80">
                   <Loader2 className="w-10 h-10 animate-spin" />
-                  <p className="text-sm">Đang kết nối đến stream...</p>
-                  <p className="text-xs text-white/50">Quá trình này có thể mất vài giây</p>
+                  <p className="text-sm">{t("livewatch.connecting")}</p>
+                  <p className="text-xs text-white/50">{t("livewatch.connectingHint")}</p>
                 </div>
               )}
 
               {connState === "failed" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 bg-black/80">
                   <WifiOff className="w-10 h-10" />
-                  <p className="text-sm">Không thể kết nối đến stream</p>
+                  <p className="text-sm">{t("livewatch.connectionFailed")}</p>
                   <Button size="sm" variant="outline" onClick={handleRetry}>
-                    Thử lại
+                    {t("livewatch.retry")}
                   </Button>
                 </div>
               )}
@@ -229,7 +225,6 @@ export default function LiveWatch() {
               )}
             </div>
 
-            {/* Channel info */}
             <div className="flex items-start gap-3">
               <Link href={`/channel/${livestream.channelId}`}>
                 <Avatar className="w-10 h-10 flex-shrink-0 cursor-pointer">
@@ -252,14 +247,13 @@ export default function LiveWatch() {
               </div>
             </div>
 
-            {/* Yêu cầu đăng nhập để xem */}
             {!isAuthenticated && (
               <div className="bg-muted/50 border border-border rounded-xl p-4 text-center">
                 <p className="text-sm text-muted-foreground mb-3">
-                  Đăng nhập để kết nối và xem livestream
+                  {t("livewatch.loginRequired")}
                 </p>
                 <Button size="sm" onClick={() => navigate("/login")}>
-                  Đăng nhập
+                  {t("livewatch.login")}
                 </Button>
               </div>
             )}
@@ -269,12 +263,12 @@ export default function LiveWatch() {
           <div className="flex flex-col bg-card border border-border rounded-xl overflow-hidden h-[420px] lg:h-auto">
             <div className="px-4 py-3 border-b border-border flex items-center gap-2">
               <Radio className="w-3.5 h-3.5 text-red-500" />
-              <p className="font-semibold text-sm text-foreground">Chat trực tiếp</p>
+              <p className="font-semibold text-sm text-foreground">{t("livewatch.liveChat")}</p>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
               {chats.length === 0 && (
-                <p className="text-center text-muted-foreground text-sm py-8">Chưa có tin nhắn</p>
+                <p className="text-center text-muted-foreground text-sm py-8">{t("livewatch.noChats")}</p>
               )}
               {chats.map(c => (
                 <div key={c.id} className="text-sm">
@@ -287,7 +281,7 @@ export default function LiveWatch() {
 
             <div className="p-3 border-t border-border flex gap-2">
               <Input
-                placeholder={isAuthenticated ? "Nhắn gì đó..." : "Đăng nhập để chat"}
+                placeholder={isAuthenticated ? t("livewatch.chatPlaceholder") : t("livewatch.chatLoginPlaceholder")}
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleSendChat()}
