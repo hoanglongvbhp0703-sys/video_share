@@ -27,8 +27,8 @@ npm run db:triggers  # Áp dụng PostgreSQL triggers lên Supabase (node server
 ### Key Files
 - `drizzle/schema.ts` — PostgreSQL schema (pgTable, pgEnum). Source of truth.
 - `drizzle/triggers.sql` — SQL triggers reference (counter automation). Áp dụng qua `npm run db:triggers`.
-- `server/db.ts` — All DB queries. Lazy connection via `getDb()`. Bao gồm admin queries + `updateChannelByUserId`.
-- `server/routers.ts` — All tRPC routes (videos, channels, comments, likes, subscriptions, **admin**).
+- `server/db.ts` — All DB queries. Lazy connection via `getDb()`. Bao gồm admin queries + livestream functions.
+- `server/routers.ts` — All tRPC routes (videos, channels, comments, likes, subscriptions, **admin**, **livestreams**).
 - `server/_core/localAuth.ts` — `POST /api/auth/login` với **email + password** (bcrypt verify).
 - `server/_core/trpc.ts` — Middleware: `publicProcedure`, `protectedProcedure`, `adminProcedure` (role check).
 - `server/storage.ts` — File storage: Forge/S3 nếu có env vars, local disk (`server/uploads/`) nếu không.
@@ -39,6 +39,8 @@ npm run db:triggers  # Áp dụng PostgreSQL triggers lên Supabase (node server
 - `client/src/pages/Register.tsx` — Trang đăng ký riêng (email + tên + password + confirm).
 - `client/src/pages/Landing.tsx` — Landing page cho user chưa đăng nhập (animated, multi-section).
 - `client/src/pages/Help.tsx` — Trang trợ giúp với FAQ searchable (8 danh mục).
+- `client/src/pages/GoLive.tsx` — Trang streamer: camera preview, start/stop stream, live chat panel.
+- `client/src/pages/LiveWatch.tsx` — Trang viewer: WebRTC player, connection states, live chat.
 - `client/src/pages/admin/` — AdminDashboard, AdminUsers, AdminReports.
 - `client/src/` — React pages: Home, Watch, Channel, Upload, Search, Trending.
 - `client/src/_core/hooks/useAuth.ts` — Auth hook với `isAuthReady` flag (server đã confirm).
@@ -61,6 +63,10 @@ npm run db:triggers  # Áp dụng PostgreSQL triggers lên Supabase (node server
 | `videoTags` | Many-to-many videos ↔ tags |
 | `notifications` | User notifications |
 | `reports` | Video/comment reports |
+| `passwordResets` | Forgot-password tokens (TTL 15 phút) |
+| `livestreams` | Session livestream (status: live/ended, viewerCount) |
+| `livestreamSignals` | WebRTC signaling: viewer offer + streamer answer |
+| `liveChats` | Chat messages trong livestream |
 
 ### Database Triggers (áp dụng qua `npm run db:triggers`)
 Các trigger duy trì denormalized counters tự động — atomic, không race condition:
@@ -127,6 +133,8 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Commenter channel link**: avatar + tên người bình luận trong Watch page là link đến kênh của họ.
 - **Subscription guard**: không thể đăng ký kênh của chính mình — chặn cả backend (FORBIDDEN) lẫn frontend (ẩn nút).
 - **Channel avatar + banner upload**: hover vào avatar/banner khi xem kênh của mình → overlay edit. Upload ảnh tối đa 5MB, preview tức thì. `channels.updateImages` tRPC mutation.
+- **Live stream** (`/go-live`, `/live/:channelId`): phát trực tiếp WebRTC P2P từ kênh cá nhân. Nút "Go Live" (đỏ) cạnh "Upload video" trong Channel. Badge LIVE nhấp nháy trên kênh đang stream. Chat real-time. Cơ chế: polling-based signaling qua tRPC (2s), complete SDP (ICE gathering xong mới gửi). STUN: stun.l.google.com.
+- **Tag sidebar đúng chuẩn**: `/tag/nhac` → video có `category=music`; `/tag/phim` → `movies`; `/tag/the-thao` → `sports`; `/tag/tin-tuc` → `news`; `/tag/hot` → top viewCount. Merge kết quả từ bảng `tags` + `videos.category`.
 
 ### Còn thiếu / cần làm (ưu tiên cao → thấp)
 
@@ -137,6 +145,11 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Upload video lớn (>35MB)**: cần multipart upload thay vì gửi bytes qua tRPC body (limit 50MB thực tế ~35MB do base64 overhead)
 - **Dark mode toàn diện**: Layout/TopNav/Sidebar/VideoCard đã dùng semantic tokens. Một số trang phụ (Profile, Notifications, Playlists, History…) còn dùng `bg-white` cứng — đã có global CSS override trong `index.css` nhưng chưa test hết.
 - **Trang ComponentShowcase**: `client/src/pages/ComponentShowcase.tsx` là trang dev nội bộ, chưa có route — cân nhắc xóa hoặc ẩn
+
+### Đã làm — Session 2026-05-29 (live stream + tag fix)
+- ✅ **Live stream WebRTC** (`client/src/pages/GoLive.tsx`, `client/src/pages/LiveWatch.tsx`, `server/db.ts`, `server/routers.ts`, `drizzle/schema.ts`): phát trực tiếp P2P từ trình duyệt. 3 bảng mới (`livestreams`, `livestreamSignals`, `liveChats`). 11 DB functions + 11 tRPC endpoints. Streamer: camera preview → start → xử lý viewer offer → gửi answer. Viewer: tạo offer → poll answer → WebRTC connected. Signaling qua polling 2s, complete SDP (không cần ICE candidate riêng lẻ). Nút "Go Live" đỏ cạnh "Upload video" trong `Channel.tsx`.
+- ✅ **Tag sidebar fix** (`server/db.ts` — `getVideosByTag`): sidebar link `/tag/nhac` → category `music`; `/tag/phim` → `movies`; `/tag/the-thao` → `sports`; v.v. Thêm `CATEGORY_TAG_MAP` + merge 2 query (tags table + videos.category). `/tag/hot` → `ORDER BY viewCount DESC`.
+- ✅ **Fix 3 lỗi TS `password` → `passwordHash`** (`server/db.ts` `updateUserPassword`, `server/routers.ts` `auth.me` + `users.getMyProfile`): sót từ rename session trước.
 
 ### Đã làm — Session 2026-05-29 (session sau)
 - ✅ **Quên mật khẩu** (`server/_core/localAuth.ts`, `client/src/pages/ForgotPassword.tsx`, `client/src/pages/ResetPassword.tsx`): flow đầy đủ — nhập email → server tạo token 48 ký tự TTL 15 phút lưu bảng `passwordResets`, log link ra console. `/reset-password?token=xxx` xác thực token + đổi mật khẩu, auto-redirect về `/login`. Link "Quên mật khẩu?" trong `Login.tsx` cạnh label Password.
@@ -237,6 +250,11 @@ npm run seed
 - **Video `duration`** — đã fix session 3: `extractFirstFrame` trả về `{thumbFile, duration}`, `getVideoDuration()` helper cho trường hợp không auto-thumbnail.
 - **Supabase connection pool**: dùng transaction pooler (port 6543), `max: 1`, `prepare: false`. KHÔNG đổi về session pooler (port 5432) — sẽ gây EMAXCONNSESSION khi tsx watch hot-reload tạo nhiều process.
 - **Avatar/banner kênh**: `channels.avatarUrl` + `channels.bannerUrl` đã có trong schema. Upload qua `channels.updateImages` tRPC mutation → `storagePut` → local disk (hoặc Forge/S3 nếu có env). Giới hạn 5MB.
+- **Live stream yêu cầu đăng nhập để xem**: `sendViewerOffer` là `protectedProcedure` — viewer phải login. `getViewerSignals` là `publicProcedure` nhưng nhận `viewerId` từ client (phải truyền `user.id`).
+- **Live stream WebRTC chỉ hoạt động tốt trong LAN / cùng mạng**: dùng STUN Google nhưng không có TURN server. Nếu streamer + viewer khác NAT, kết nối có thể fail (`connState = "failed"` → nút "Thử lại"). Production cần TURN server.
+- **Signaling polling 2s**: delay tối đa 2s để viewer nhận được answer sau khi streamer xử lý offer. ICE gathering timeout 8s (sau đó gửi SDP dù chưa hoàn tất).
+- **`livestreams` bảng tự end stream cũ**: `startLivestream()` tự `UPDATE SET status='ended'` cho stream đang active của kênh đó trước khi insert mới — tránh zombie stream.
+- **`db:push` cần chạy để tạo 3 bảng livestream mới** — hoặc paste CREATE TABLE từ cuối `drizzle/supabase-setup.sql` vào Supabase SQL Editor nếu `db:push` timeout.
 - Schema was MySQL (`mysqlTable`) — migrated to PostgreSQL (`pgTable`) for Supabase
 - `onDuplicateKeyUpdate` → `onConflictDoUpdate` (PostgreSQL syntax in Drizzle)
 - `updatedAt` columns: chỉ `playlists` có trigger tự cập nhật (khi add/remove video). Các bảng khác update thủ công.
