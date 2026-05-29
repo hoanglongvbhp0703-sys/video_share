@@ -20,7 +20,7 @@ npm run db:triggers  # Áp dụng PostgreSQL triggers lên Supabase (node server
 - **Frontend**: React 19, Vite, TanStack Query, tRPC client, Tailwind CSS, wouter (routing)
 - **Backend**: Express, tRPC server, Drizzle ORM
 - **Database**: **Supabase PostgreSQL** (driver: `postgres` / postgres.js)
-- **Auth**: Manus OAuth (cookie-based session)
+- **Auth**: Email + password (bcrypt). JWT lưu trong cookie (shared) VÀ `sessionStorage` per-tab (cho multi-account tabs)
 - **Storage**: AWS S3 (presigned URL upload)
 - **Tests**: Vitest
 
@@ -45,7 +45,7 @@ npm run db:triggers  # Áp dụng PostgreSQL triggers lên Supabase (node server
 - `client/src/` — React pages: Home, Watch, Channel, Upload, Search, Trending.
 - `client/src/_core/hooks/useAuth.ts` — Auth hook với `isAuthReady` flag (server đã confirm).
 - `drizzle.config.ts` — Drizzle Kit config (dialect: postgresql).
-- `.env` — DATABASE_URL (Supabase **transaction pooler, port 6543**).
+- `.env` — DATABASE_URL (Supabase **transaction pooler, port 6543**) + DIRECT_URL (session pooler port 5432, dùng cho drizzle-kit).
 
 ### Database Tables
 | Table | Description |
@@ -134,17 +134,25 @@ npm run db:setup && npm run seed && npm run db:triggers
 - **Subscription guard**: không thể đăng ký kênh của chính mình — chặn cả backend (FORBIDDEN) lẫn frontend (ẩn nút).
 - **Channel avatar + banner upload**: hover vào avatar/banner khi xem kênh của mình → overlay edit. Upload ảnh tối đa 5MB, preview tức thì. `channels.updateImages` tRPC mutation.
 - **Live stream** (`/go-live`, `/live/:channelId`): phát trực tiếp WebRTC P2P từ kênh cá nhân. Nút "Go Live" (đỏ) cạnh "Upload video" trong Channel. Badge LIVE nhấp nháy trên kênh đang stream. Chat real-time. Cơ chế: polling-based signaling qua tRPC (2s), complete SDP (ICE gathering xong mới gửi). STUN: stun.l.google.com.
+- **Livestream history trên Channel page**: tab bar "Video / Livestream". Tab Livestream hiển thị các buổi stream đã kết thúc (status=ended) kèm ngày giờ phát. `channels.getLivestreams` tRPC endpoint + `getEndedLivestreamsByChannel()` DB fn.
+- **Per-tab session isolation**: Login/Register lưu JWT vào `sessionStorage` (key `vs_session_token`). tRPC client gửi `Authorization: Bearer <token>`. Server `authenticateRequest` ưu tiên header trước cookie → mỗi tab có thể đăng nhập tài khoản khác nhau.
 - **Tag sidebar đúng chuẩn**: `/tag/nhac` → video có `category=music`; `/tag/phim` → `movies`; `/tag/the-thao` → `sports`; `/tag/tin-tuc` → `news`; `/tag/hot` → top viewCount. Merge kết quả từ bảng `tags` + `videos.category`.
 
 ### Còn thiếu / cần làm (ưu tiên cao → thấp)
 
 #### 🔴 Bug chưa fix
-*(Tất cả bug đã được fix — xem các section "Đã fix" bên dưới)*
+- **Livestream history chỉ có vỏ, không xem được**: Tab "Livestream" trên Channel page hiển thị card nhưng không có link → không click vào xem lại được. Livestream WebRTC là P2P real-time, không record — cần quyết định: (1) chỉ hiển thị metadata (không xem lại), hoặc (2) record stream → lưu file video → xem lại như video thường.
 
 #### 🟡 Cải tiến
 - **Upload video lớn (>35MB)**: cần multipart upload thay vì gửi bytes qua tRPC body (limit 50MB thực tế ~35MB do base64 overhead)
 - **Dark mode toàn diện**: Layout/TopNav/Sidebar/VideoCard đã dùng semantic tokens. Một số trang phụ (Profile, Notifications, Playlists, History…) còn dùng `bg-white` cứng — đã có global CSS override trong `index.css` nhưng chưa test hết.
 - **Trang ComponentShowcase**: `client/src/pages/ComponentShowcase.tsx` là trang dev nội bộ, chưa có route — cân nhắc xóa hoặc ẩn
+
+### Đã làm — Session 2026-05-29 (session này)
+- ✅ **drizzle.config.ts dùng DIRECT_URL** (`drizzle.config.ts`, `.env`): `DIRECT_URL` trỏ session pooler port 5432. `drizzle-kit push` dùng `DIRECT_URL ?? DATABASE_URL` — không còn bị treo "Pulling schema from database" khi dùng transaction pooler. Commit `5db5253`.
+- ✅ **Per-tab session isolation** (`shared/const.ts`, `server/_core/sdk.ts`, `server/_core/localAuth.ts`, `client/src/main.tsx`, `Login.tsx`, `Register.tsx`, `useAuth.ts`): JWT trả về trong body login response, client lưu vào `sessionStorage[vs_session_token]`, tRPC gửi `Authorization: Bearer`. Server đọc header trước cookie. Mỗi tab độc lập. Commit `b4dfd33`.
+- ✅ **Livestream history trên Channel page** (`server/db.ts` — `getEndedLivestreamsByChannel`, `server/routers.ts` — `channels.getLivestreams`, `client/src/pages/Channel.tsx`): tab bar Videos/Livestreams, tab Livestream liệt kê buổi stream đã kết thúc kèm ngày giờ. Commit `b4dfd33`.
+- ✅ **Fix subscribe button không đổi trạng thái** (`client/src/pages/Channel.tsx`): xóa `isSubscribed` useState không dùng; `onSuccess` invalidate `subscriptions.isSubscribed` + `subscriptions.getCount` → button và số người đăng ký cập nhật ngay. Commit `b4dfd33`.
 
 ### Đã làm — Session 2026-05-29 (live stream + tag fix)
 - ✅ **Live stream WebRTC** (`client/src/pages/GoLive.tsx`, `client/src/pages/LiveWatch.tsx`, `server/db.ts`, `server/routers.ts`, `drizzle/schema.ts`): phát trực tiếp P2P từ trình duyệt. 3 bảng mới (`livestreams`, `livestreamSignals`, `liveChats`). 11 DB functions + 11 tRPC endpoints. Streamer: camera preview → start → xử lý viewer offer → gửi answer. Viewer: tạo offer → poll answer → WebRTC connected. Signaling qua polling 2s, complete SDP (không cần ICE candidate riêng lẻ). Nút "Go Live" đỏ cạnh "Upload video" trong `Channel.tsx`.
@@ -254,6 +262,8 @@ npm run seed
 - **Live stream WebRTC chỉ hoạt động tốt trong LAN / cùng mạng**: dùng STUN Google nhưng không có TURN server. Nếu streamer + viewer khác NAT, kết nối có thể fail (`connState = "failed"` → nút "Thử lại"). Production cần TURN server.
 - **Signaling polling 2s**: delay tối đa 2s để viewer nhận được answer sau khi streamer xử lý offer. ICE gathering timeout 8s (sau đó gửi SDP dù chưa hoàn tất).
 - **`livestreams` bảng tự end stream cũ**: `startLivestream()` tự `UPDATE SET status='ended'` cho stream đang active của kênh đó trước khi insert mới — tránh zombie stream.
+- **`DIRECT_URL` bắt buộc cho `db:push`** — `drizzle.config.ts` dùng `DIRECT_URL ?? DATABASE_URL`. Nếu chỉ có transaction pooler (6543), drizzle-kit sẽ treo ở "Pulling schema". Set `DIRECT_URL` = session pooler port 5432 trong `.env`.
+- **Per-tab session — user cũ không có sessionStorage token**: Sau khi deploy fix này, user đã login (có cookie) nhưng chưa login lại sẽ không có `sessionStorage` token → request vẫn dùng cookie → hoạt động bình thường. Chỉ cần login lại để có token per-tab.
 - **`db:push` cần chạy để tạo 3 bảng livestream mới** — hoặc paste CREATE TABLE từ cuối `drizzle/supabase-setup.sql` vào Supabase SQL Editor nếu `db:push` timeout.
 - Schema was MySQL (`mysqlTable`) — migrated to PostgreSQL (`pgTable`) for Supabase
 - `onDuplicateKeyUpdate` → `onConflictDoUpdate` (PostgreSQL syntax in Drizzle)
