@@ -683,10 +683,10 @@ export const appRouter = router({
         language: z.string().default("vi"),
       }))
       .mutation(async ({ input }) => {
-        const apiKey = process.env.XAI_API_KEY;
+        const apiKey = process.env.GROQ_API_KEY;
         const lastUserMsg = [...input.messages].reverse().find(m => m.role === "user")?.content ?? "";
 
-        // Thử gọi Grok nếu có API key hợp lệ
+        // Thử gọi Groq nếu có API key
         if (apiKey) {
           try {
             const langName =
@@ -698,15 +698,15 @@ Available categories: news, gaming, music, movies, live, sports
 Respond ONLY with raw JSON (no markdown): {"message":"...","category":"music|gaming|movies|news|live|sports|null","searchQuery":"keywords or null"}
 Respond in ${langName}. Be concise (1-2 sentences).`;
 
-            const res = await fetch("https://api.x.ai/v1/chat/completions", {
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
               body: JSON.stringify({
-                model: "grok-3-mini",
+                model: "llama-3.3-70b-versatile",
                 messages: [{ role: "system", content: systemPrompt }, ...input.messages],
                 response_format: { type: "json_object" },
-                reasoning_effort: "low",
-                max_tokens: 1000,
+                temperature: 0.7,
+                max_tokens: 500,
               }),
             });
 
