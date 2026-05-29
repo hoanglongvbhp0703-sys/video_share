@@ -135,6 +135,11 @@ references/
 # One-off database migration/utility scripts (not part of ongoing source)
 server/add-*.mjs
 server/check-*.mjs
+server/rename-*.mjs
+server/set-default-password.mjs
+
+# AI assistant internal docs (not for public repo)
+CLAUDE.md
 
 # Empty placeholder files
 .gitkeep
