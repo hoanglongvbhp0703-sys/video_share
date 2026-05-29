@@ -10,6 +10,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { SESSION_TOKEN_KEY } from "@shared/const";
+import { useTranslation } from "react-i18next";
 
 async function uploadFileDirect(
   fileKey: string,
@@ -89,6 +90,7 @@ function getVideoDuration(file: File): Promise<number> {
 export default function Upload() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const { t } = useTranslation();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -100,7 +102,7 @@ export default function Upload() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedBytes, setUploadedBytes] = useState(0);
   const [totalBytes, setTotalBytes] = useState(0);
-  const [uploadSpeed, setUploadSpeed] = useState(0); // MB/s
+  const [uploadSpeed, setUploadSpeed] = useState(0);
   const [uploadStartTime, setUploadStartTime] = useState<number | null>(null);
   const [videoDragActive, setVideoDragActive] = useState(false);
   const [thumbnailDragActive, setThumbnailDragActive] = useState(false);
@@ -115,8 +117,8 @@ export default function Upload() {
       <Layout>
         <div className="p-4 md:p-6 max-w-2xl mx-auto">
           <div className="text-center py-12">
-            <p className="text-gray-600 mb-4">Vui lòng đăng nhập để upload video</p>
-            <Button onClick={() => navigate("/")}>Quay lại trang chủ</Button>
+            <p className="text-gray-600 mb-4">{t("upload.loginRequired")}</p>
+            <Button onClick={() => navigate("/")}>{t("upload.goHome")}</Button>
           </div>
         </div>
       </Layout>
@@ -125,11 +127,11 @@ export default function Upload() {
 
   const validateVideoFile = (file: File): boolean => {
     if (file.size > 500 * 1024 * 1024) {
-      toast.error("File video không được vượt quá 500MB");
+      toast.error(t("upload.videoTooLarge"));
       return false;
     }
     if (!file.type.startsWith("video/")) {
-      toast.error("Vui lòng chọn file video hợp lệ");
+      toast.error(t("upload.invalidVideoType"));
       return false;
     }
     return true;
@@ -137,11 +139,11 @@ export default function Upload() {
 
   const validateThumbnailFile = (file: File): boolean => {
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("File thumbnail không được vượt quá 5MB");
+      toast.error(t("upload.thumbnailTooLarge"));
       return false;
     }
     if (!file.type.startsWith("image/")) {
-      toast.error("Vui lòng chọn file ảnh hợp lệ");
+      toast.error(t("upload.invalidThumbnailType"));
       return false;
     }
     return true;
@@ -181,7 +183,6 @@ export default function Upload() {
     }
   };
 
-  // Video drag and drop handlers
   const handleVideoDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -196,7 +197,6 @@ export default function Upload() {
     e.preventDefault();
     e.stopPropagation();
     setVideoDragActive(false);
-
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -220,7 +220,6 @@ export default function Upload() {
     }
   };
 
-  // Thumbnail drag and drop handlers
   const handleThumbnailDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -235,7 +234,6 @@ export default function Upload() {
     e.preventDefault();
     e.stopPropagation();
     setThumbnailDragActive(false);
-
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -251,20 +249,16 @@ export default function Upload() {
     }
   };
 
-  // Calculate remaining time
   const calculateETA = (): string => {
     if (uploadSpeed === 0 || uploadProgress === 0) return "--:--";
     const remainingBytes = totalBytes - uploadedBytes;
     const remainingSeconds = remainingBytes / (uploadSpeed * 1024 * 1024);
-
     if (remainingSeconds < 0) return "--:--";
-
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = Math.floor(remainingSeconds % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  // Format bytes to MB
   const formatBytes = (bytes: number): string => {
     return (bytes / (1024 * 1024)).toFixed(2);
   };
@@ -273,12 +267,11 @@ export default function Upload() {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error("Vui lòng nhập tiêu đề video");
+      toast.error(t("upload.titleRequired"));
       return;
     }
-
     if (!videoFile) {
-      toast.error("Vui lòng chọn file video");
+      toast.error(t("upload.videoRequired"));
       return;
     }
 
@@ -288,14 +281,12 @@ export default function Upload() {
     setUploadSpeed(0);
     setUploadStartTime(Date.now());
 
-    // Calculate total bytes
     const videoSize = videoFile.size;
     const thumbnailSize = thumbnailFile?.size || 0;
     const totalSize = videoSize + thumbnailSize;
     setTotalBytes(totalSize);
 
     try {
-      // Step 1: Get presigned URLs for video and thumbnail
       const presignedUrls = await uploadPresignedUrlMutation.mutateAsync({
         videoFileName: videoFile.name,
         videoMimeType: videoFile.type,
@@ -305,49 +296,38 @@ export default function Upload() {
 
       setUploadProgress(10);
 
-      // Step 2: Upload video file directly (supports files up to 500 MB)
       const videoStartTime = Date.now();
-
       const videoUploadResult = await uploadFileDirect(
         presignedUrls.videoKey,
         videoFile,
         videoFile.type,
       );
 
-      // Calculate video upload speed
-      const videoUploadTime = (Date.now() - videoStartTime) / 1000; // seconds
+      const videoUploadTime = (Date.now() - videoStartTime) / 1000;
       const videoSpeedMBps = videoSize / (1024 * 1024) / videoUploadTime;
 
       setUploadedBytes(videoSize);
       setUploadSpeed(videoSpeedMBps);
       setUploadProgress(60);
 
-      // Step 3: Upload thumbnail if provided
       let thumbnailUrl: string | undefined;
       if (thumbnailFile && presignedUrls.thumbnailKey) {
         const thumbnailStartTime = Date.now();
-
         const thumbnailUploadResult = await uploadFileDirect(
           presignedUrls.thumbnailKey,
           thumbnailFile,
           thumbnailFile.type,
         );
-
-        // Calculate thumbnail upload speed
         const thumbnailUploadTime = (Date.now() - thumbnailStartTime) / 1000;
         const thumbnailSpeedMBps = thumbnailSize / (1024 * 1024) / thumbnailUploadTime;
-
-        // Average speed
         const avgSpeed = (videoSpeedMBps + thumbnailSpeedMBps) / 2;
         setUploadSpeed(avgSpeed);
         setUploadedBytes(videoSize + thumbnailSize);
-
         thumbnailUrl = thumbnailUploadResult.url;
       }
 
       setUploadProgress(80);
 
-      // Step 4: Create video record with URLs
       await createWithUrlsMutation.mutateAsync({
         title: title.trim(),
         description: description.trim(),
@@ -358,13 +338,11 @@ export default function Upload() {
       });
 
       setUploadProgress(100);
-      toast.success("Video đã được upload thành công!");
-      setTimeout(() => {
-        navigate("/");
-      }, 1500);
+      toast.success(t("upload.successMsg"));
+      setTimeout(() => navigate("/"), 1500);
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Lỗi khi upload video. Vui lòng thử lại.");
+      toast.error(t("upload.errorMsg"));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -377,14 +355,14 @@ export default function Upload() {
   return (
     <Layout>
       <div className="p-4 md:p-6 max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload video</h1>
-        <p className="text-gray-600 mb-6">Chia sẻ video của bạn với cộng đồng</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">{t("upload.title")}</h1>
+        <p className="text-gray-600 mb-6">{t("upload.subtitle")}</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Video File Upload with Drag and Drop */}
+          {/* Video File */}
           <Card className="p-6">
             <label className="block mb-2 font-medium text-gray-900">
-              File video *
+              {t("upload.videoFile")}
             </label>
             <div
               onDragEnter={handleVideoDrag}
@@ -408,9 +386,7 @@ export default function Upload() {
               <label htmlFor="video-input" className="cursor-pointer block">
                 <UploadIcon
                   className={`w-12 h-12 mx-auto mb-2 transition-colors ${
-                    videoDragActive
-                      ? "text-primary"
-                      : "text-gray-400 group-hover:text-primary"
+                    videoDragActive ? "text-primary" : "text-gray-400 group-hover:text-primary"
                   }`}
                 />
                 <p className="text-gray-600 font-medium">
@@ -420,10 +396,10 @@ export default function Upload() {
                       {videoFile.name}
                     </span>
                   ) : (
-                    "Kéo thả file video hoặc nhấp để chọn"
+                    t("upload.dropVideo")
                   )}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">Tối đa 500MB</p>
+                <p className="text-sm text-gray-500 mt-1">{t("upload.maxVideoSize")}</p>
               </label>
             </div>
             {videoFile && (
@@ -433,15 +409,15 @@ export default function Upload() {
                 className="mt-2 text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
               >
                 <X className="w-4 h-4" />
-                Xóa file video
+                {t("upload.removeVideo")}
               </button>
             )}
           </Card>
 
-          {/* Thumbnail Upload with Drag and Drop */}
+          {/* Thumbnail */}
           <Card className="p-6">
             <label className="block mb-2 font-medium text-gray-900">
-              Ảnh thu nhỏ (tùy chọn)
+              {t("upload.thumbnailFile")}
             </label>
             <div
               onDragEnter={handleThumbnailDrag}
@@ -465,9 +441,7 @@ export default function Upload() {
               <label htmlFor="thumbnail-input" className="cursor-pointer block">
                 <UploadIcon
                   className={`w-12 h-12 mx-auto mb-2 transition-colors ${
-                    thumbnailDragActive
-                      ? "text-primary"
-                      : "text-gray-400 group-hover:text-primary"
+                    thumbnailDragActive ? "text-primary" : "text-gray-400 group-hover:text-primary"
                   }`}
                 />
                 <p className="text-gray-600 font-medium">
@@ -477,10 +451,10 @@ export default function Upload() {
                       {thumbnailFile.name}
                     </span>
                   ) : (
-                    "Kéo thả ảnh hoặc nhấp để chọn"
+                    t("upload.dropThumbnail")
                   )}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">Tối đa 5MB</p>
+                <p className="text-sm text-gray-500 mt-1">{t("upload.maxThumbnailSize")}</p>
               </label>
             </div>
             {thumbnailFile && (
@@ -493,9 +467,7 @@ export default function Upload() {
                       className="w-full h-auto rounded-lg border border-gray-200"
                     />
                     <p className="text-xs text-gray-500 mt-2 text-center">
-                      {isAutoThumbnail
-                        ? "Ảnh tự động từ giây đầu video (có thể thay thế)"
-                        : "Preview ảnh thumbnail"}
+                      {isAutoThumbnail ? t("upload.autoThumbnail") : t("upload.thumbnailPreview")}
                     </p>
                   </div>
                 )}
@@ -509,7 +481,7 @@ export default function Upload() {
                   className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
                 >
                   <X className="w-4 h-4" />
-                  Xóa ảnh thumbnail
+                  {t("upload.removeThumbnail")}
                 </button>
               </div>
             )}
@@ -518,11 +490,11 @@ export default function Upload() {
           {/* Title */}
           <Card className="p-6">
             <label className="block mb-2 font-medium text-gray-900">
-              Tiêu đề *
+              {t("upload.videoTitle")}
             </label>
             <Input
               type="text"
-              placeholder="Nhập tiêu đề video"
+              placeholder={t("upload.titlePlaceholder")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isUploading}
@@ -534,10 +506,10 @@ export default function Upload() {
           {/* Description */}
           <Card className="p-6">
             <label className="block mb-2 font-medium text-gray-900">
-              Mô tả (tùy chọn)
+              {t("upload.description")}
             </label>
             <Textarea
-              placeholder="Nhập mô tả video"
+              placeholder={t("upload.descPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isUploading}
@@ -550,7 +522,7 @@ export default function Upload() {
           {/* Category */}
           <Card className="p-6">
             <label className="block mb-2 font-medium text-gray-900">
-              Danh mục (tùy chọn)
+              {t("upload.category")}
             </label>
             <select
               value={category}
@@ -558,27 +530,26 @@ export default function Upload() {
               disabled={isUploading}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary bg-white"
             >
-              <option value="">-- Chọn danh mục --</option>
-              <option value="music">Âm nhạc</option>
-              <option value="gaming">Gaming</option>
-              <option value="movies">Phim</option>
-              <option value="live">Trực tiếp</option>
-              <option value="sports">Thể thao</option>
-              <option value="news">Tin tức</option>
+              <option value="">{t("upload.categoryPlaceholder")}</option>
+              <option value="music">{t("upload.categoryMusic")}</option>
+              <option value="gaming">{t("upload.categoryGaming")}</option>
+              <option value="movies">{t("upload.categoryMovies")}</option>
+              <option value="live">{t("upload.categoryLive")}</option>
+              <option value="sports">{t("upload.categorySports")}</option>
+              <option value="news">{t("upload.categoryNews")}</option>
             </select>
           </Card>
 
-          {/* Upload Progress - Advanced */}
+          {/* Upload Progress */}
           {isUploading && (
             <Card className="p-6 bg-gradient-to-br from-blue-50 to-green-50 border-blue-200">
               <div className="space-y-4">
-                {/* Progress Percentage and Status */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        Đang upload... {uploadProgress}%
+                        {t("upload.uploadingStatus", { percent: uploadProgress })}
                       </p>
                       <p className="text-xs text-gray-600">
                         {formatBytes(uploadedBytes)} / {formatBytes(totalBytes)} MB
@@ -589,11 +560,10 @@ export default function Upload() {
                     <p className="text-sm font-semibold text-gray-900">
                       {uploadSpeed.toFixed(2)} MB/s
                     </p>
-                    <p className="text-xs text-gray-600">Thời gian còn lại: {calculateETA()}</p>
+                    <p className="text-xs text-gray-600">{t("upload.remainingTime", { time: calculateETA() })}</p>
                   </div>
                 </div>
 
-                {/* Progress Bar */}
                 <div className="space-y-2">
                   <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                     <div
@@ -602,20 +572,19 @@ export default function Upload() {
                     ></div>
                   </div>
 
-                  {/* Detailed Stats */}
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div className="bg-white rounded-lg p-2 border border-gray-200">
-                      <p className="text-xs text-gray-600">Tiến độ</p>
+                      <p className="text-xs text-gray-600">{t("upload.progressLabel")}</p>
                       <p className="text-sm font-bold text-primary">{uploadProgress}%</p>
                     </div>
                     <div className="bg-white rounded-lg p-2 border border-gray-200">
-                      <p className="text-xs text-gray-600">Tốc độ</p>
+                      <p className="text-xs text-gray-600">{t("upload.speedLabel")}</p>
                       <p className="text-sm font-bold text-green-600">
                         {uploadSpeed.toFixed(1)} MB/s
                       </p>
                     </div>
                     <div className="bg-white rounded-lg p-2 border border-gray-200">
-                      <p className="text-xs text-gray-600">Còn lại</p>
+                      <p className="text-xs text-gray-600">{t("upload.remainingLabel")}</p>
                       <p className="text-sm font-bold text-blue-600">{calculateETA()}</p>
                     </div>
                   </div>
@@ -624,14 +593,14 @@ export default function Upload() {
             </Card>
           )}
 
-          {/* Submit Button */}
+          {/* Submit */}
           <div className="flex gap-3">
             <Button
               type="submit"
               disabled={isUploading || !videoFile || !title.trim()}
               className="flex-1"
             >
-              {isUploading ? "Đang upload..." : "Upload video"}
+              {isUploading ? t("upload.uploadingBtn") : t("upload.uploadBtn")}
             </Button>
             <Button
               type="button"
@@ -639,7 +608,7 @@ export default function Upload() {
               onClick={() => navigate("/")}
               disabled={isUploading}
             >
-              Hủy
+              {t("upload.cancel")}
             </Button>
           </div>
         </form>
