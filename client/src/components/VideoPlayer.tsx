@@ -58,32 +58,35 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
   }, [src, isValidSrc]);
 
   return (
-    <div className="w-full bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center relative">
+    <div className="w-full bg-black rounded-lg overflow-hidden aspect-video relative">
       {!isValidSrc ? (
-        <div className="flex flex-col items-center justify-center gap-3 text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
           <AlertCircle className="w-12 h-12 text-red-500" />
           <p className="text-center">Không có video để phát</p>
         </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center gap-3 text-white">
-          <AlertCircle className="w-12 h-12 text-red-500" />
-          <p className="text-center">{error}</p>
-        </div>
-      ) : isLoading ? (
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-        </div>
-      ) : null}
-      {isValidSrc && (
-        <video
-          ref={videoRef}
-          src={src}
-          poster={poster || undefined}
-          title={title}
-          controls
-          className="w-full h-full"
-          controlsList="nodownload"
-        />
+      ) : (
+        <>
+          <video
+            ref={videoRef}
+            src={src}
+            poster={poster || undefined}
+            title={title}
+            controls
+            className="w-full h-full"
+            controlsList="nodownload"
+          />
+          {error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white pointer-events-none">
+              <AlertCircle className="w-12 h-12 text-red-500" />
+              <p className="text-center px-4">{error}</p>
+            </div>
+          )}
+          {isLoading && !error && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
