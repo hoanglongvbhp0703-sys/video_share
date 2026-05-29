@@ -604,6 +604,96 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  ai: router({
+    chat: publicProcedure
+      .input(z.object({
+        messages: z.array(z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string().max(500),
+        })).max(20),
+        language: z.string().default("vi"),
+      }))
+      .mutation(async ({ input }) => {
+        const apiKey = process.env.XAI_API_KEY;
+        if (!apiKey) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "AI service not configured",
+          });
+        }
+
+        const langName =
+          input.language === "vi" ? "Vietnamese" :
+          input.language === "ja" ? "Japanese" : "English";
+
+        const systemPrompt = `You are a friendly video recommendation assistant for VideoShare, a video sharing platform.
+Help users find videos they want to watch by understanding their preferences.
+
+Available video categories on this platform: news, gaming, music, movies, live, sports
+
+Always respond with a valid JSON object in this exact format (no markdown, no explanation, raw JSON only):
+{
+  "message": "Your friendly response in ${langName}",
+  "category": "one of: news | gaming | music | movies | live | sports | null",
+  "searchQuery": "specific keywords to search for, or null"
+}
+
+Guidelines:
+- Always respond in ${langName}
+- Be warm and conversational (1-2 sentences max)
+- Map user interests to categories: nhạc/âm nhạc/music → music, game/gaming → gaming, phim/movies → movies, thể thao/bóng đá/sports → sports, tin tức/news → news, trực tiếp/live/stream → live
+- If the user wants a specific artist, show name, or topic → set searchQuery to those keywords
+- If category is clear and general → set category, set searchQuery to null
+- If very unclear → ask a friendly follow-up and set both to null
+- Do NOT make up video titles`;
+
+        const res = await fetch("https://api.x.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "grok-3-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...input.messages,
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.7,
+            max_tokens: 300,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("xAI API error:", errText);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI service error" });
+        }
+
+        const data = await res.json() as {
+          choices: Array<{ message: { content: string } }>;
+        };
+        const content = data.choices[0]?.message?.content ?? "{}";
+
+        try {
+          const parsed = JSON.parse(content) as {
+            message?: string;
+            category?: string | null;
+            searchQuery?: string | null;
+          };
+          const validCategories = ["news", "gaming", "music", "movies", "live", "sports"];
+          return {
+            message: parsed.message ?? "Xin lỗi, hãy thử lại.",
+            category: validCategories.includes(parsed.category ?? "") ? (parsed.category ?? null) : null,
+            searchQuery: parsed.searchQuery ?? null,
+          };
+        } catch {
+          return { message: content, category: null, searchQuery: null };
+        }
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

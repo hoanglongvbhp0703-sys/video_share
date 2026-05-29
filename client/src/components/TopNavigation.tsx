@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -316,6 +316,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
               <DropdownMenuTrigger asChild>
                 <button className="p-1 hover:bg-accent rounded-full transition-colors">
                   <Avatar className="w-8 h-8">
+                    <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? ""} />
                     <AvatarFallback className="bg-primary text-white text-xs font-bold">
                       {user?.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
@@ -325,6 +326,7 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
               <DropdownMenuContent align="end" className="w-64 py-2">
                 <div className="px-4 py-3 flex items-center gap-3">
                   <Avatar className="w-10 h-10 flex-shrink-0">
+                    <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? ""} />
                     <AvatarFallback className="bg-primary text-white font-bold">
                       {user?.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>

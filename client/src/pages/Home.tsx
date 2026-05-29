@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import VideoCard from "@/components/VideoCard";
+import VideoChatBot from "@/components/VideoChatBot";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ export default function Home() {
 
   return (
     <Layout>
+      <VideoChatBot />
       <div className="w-full h-full overflow-auto">
         <div className="p-4 md:p-6">
           {/* Header */}

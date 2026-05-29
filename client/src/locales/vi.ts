@@ -421,6 +421,13 @@ const vi = {
     noVideos: "Chưa có video nào với tag này.",
     exploreAll: "Khám phá tất cả video →",
   },
+  chatbot: {
+    title: "Trợ lý VideoShare",
+    subtitle: "Gợi ý video cho bạn",
+    greeting: "Xin chào! 👋 Tôi là trợ lý VideoShare. Bạn muốn xem thể loại video gì hôm nay? (ví dụ: nhạc, phim, gaming, thể thao...)",
+    inputPlaceholder: "Nhập sở thích của bạn...",
+    error: "Xin lỗi, có lỗi xảy ra. Bạn thử lại không?",
+  },
 };
 
 export default vi;

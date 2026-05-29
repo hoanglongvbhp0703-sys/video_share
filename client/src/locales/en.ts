@@ -421,6 +421,13 @@ const en = {
     noVideos: "No videos with this tag yet.",
     exploreAll: "Explore all videos →",
   },
+  chatbot: {
+    title: "VideoShare Assistant",
+    subtitle: "Video recommendations for you",
+    greeting: "Hi there! 👋 I'm VideoShare's assistant. What kind of videos do you want to watch today? (e.g., music, movies, gaming, sports...)",
+    inputPlaceholder: "Tell me what you'd like to watch...",
+    error: "Sorry, something went wrong. Please try again.",
+  },
 };
 
 export default en;

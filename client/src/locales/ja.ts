@@ -421,6 +421,13 @@ const ja = {
     noVideos: "このタグの動画はまだありません。",
     exploreAll: "すべての動画を探す →",
   },
+  chatbot: {
+    title: "VideoShareアシスタント",
+    subtitle: "あなたへの動画おすすめ",
+    greeting: "こんにちは！👋 VideoShareのアシスタントです。今日はどんな動画を見たいですか？（例：音楽、映画、ゲーム、スポーツ...）",
+    inputPlaceholder: "好みを入力してください...",
+    error: "申し訳ありません、エラーが発生しました。もう一度お試しください。",
+  },
 };
 
 export default ja;
