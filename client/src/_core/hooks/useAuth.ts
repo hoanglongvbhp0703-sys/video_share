@@ -46,14 +46,15 @@ export function useAuth(options?: UseAuthOptions) {
         error instanceof TRPCClientError &&
         error.data?.code === "UNAUTHORIZED"
       ) {
-        return;
+        // đã hết session — tiếp tục cleanup
+      } else {
+        throw error;
       }
-      throw error;
     } finally {
       localStorage.removeItem("manus-runtime-user-info");
       sessionStorage.removeItem(SESSION_TOKEN_KEY);
       utils.auth.me.setData(undefined, null);
-      await utils.auth.me.invalidate();
+      window.location.href = "/";
     }
   }, [logoutMutation, utils]);
 
