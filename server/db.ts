@@ -8,6 +8,7 @@ import {
   InsertNotification,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { normalizeVi } from "../shared/normalize";
 
 type DrizzleDB = ReturnType<typeof drizzle>;
 let _db: DrizzleDB | null = null;
@@ -131,6 +132,7 @@ export async function getOrCreateChannel(userId: number, userName: string) {
   await db.insert(channels).values({
     userId,
     name: userName,
+    nameNorm: normalizeVi(userName),
   });
 
   const created = await db
@@ -152,7 +154,7 @@ export async function updateChannelImages(userId: number, updates: { avatarUrl?:
 export async function updateChannelByUserId(userId: number, name: string) {
   const db = await getDb();
   if (!db) return;
-  await db.update(channels).set({ name }).where(eq(channels.userId, userId));
+  await db.update(channels).set({ name, nameNorm: normalizeVi(name) }).where(eq(channels.userId, userId));
 }
 
 export async function getChannelById(channelId: number) {
@@ -184,6 +186,7 @@ export async function createVideo(
   await db.insert(videos).values({
     channelId,
     title,
+    titleNorm: normalizeVi(title),
     description,
     videoUrl,
     thumbnailUrl,
@@ -284,24 +287,38 @@ export async function searchVideos(query: string, limit: number = 20, offset: nu
   const trimmed = query.trim();
   if (!trimmed) return [];
 
+  const trimmedNorm = normalizeVi(trimmed);
   // Tách thành các từ riêng lẻ, tối đa 8 token
   const tokens = trimmed.split(/\s+/).filter(Boolean).slice(0, 8);
+  const tokensNorm = tokens.map(normalizeVi);
 
-  // Điều kiện OR: bất kỳ token nào xuất hiện trong title, description, hoặc tên channel
-  const tokenConditions = tokens.flatMap(token => [
-    ilike(videos.title, `%${token}%`),
-    ilike(videos.description, `%${token}%`),
-    ilike(channels.name, `%${token}%`),
-  ]);
+  // Điều kiện OR: khớp gốc (có dấu) HOẶC khớp norm (không dấu)
+  // Thêm case đặc biệt: user gõ liền không dấu (vd "honganh") → REPLACE(titleNorm, ' ', '')
+  const tokenConditions = tokens.flatMap((token, i) => {
+    const tn = tokensNorm[i];
+    return [
+      ilike(videos.title, `%${token}%`),
+      ilike(videos.description, `%${token}%`),
+      ilike(channels.name, `%${token}%`),
+      ilike(videos.titleNorm, `%${tn}%`),
+      ilike(channels.nameNorm, `%${tn}%`),
+      sql<boolean>`REPLACE(${videos.titleNorm}, ' ', '') ILIKE ${`%${tn}%`}`,
+    ];
+  });
 
-  // Điểm liên quan: title khớp đầy đủ > title chứa cụm từ > title chứa từng token > channel > description
+  // Điểm liên quan: exact match > phrase match > token match > norm match > compound norm
   const scoreParts = [
     sql<number>`CASE WHEN LOWER(${videos.title}) = LOWER(${trimmed}) THEN 300 ELSE 0 END`,
+    sql<number>`CASE WHEN ${videos.titleNorm} = ${trimmedNorm} THEN 280 ELSE 0 END`,
     sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${trimmed}%`} THEN 150 ELSE 0 END`,
-    ...tokens.flatMap(token => [
-      sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${token}%`} THEN 50 ELSE 0 END`,
-      sql<number>`CASE WHEN ${channels.name} ILIKE ${`%${token}%`} THEN 30 ELSE 0 END`,
-      sql<number>`CASE WHEN ${videos.description} ILIKE ${`%${token}%`} THEN 10 ELSE 0 END`,
+    sql<number>`CASE WHEN ${videos.titleNorm} ILIKE ${`%${trimmedNorm}%`} THEN 130 ELSE 0 END`,
+    ...tokensNorm.flatMap((tn, i) => [
+      sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${tokens[i]}%`} THEN 50 ELSE 0 END`,
+      sql<number>`CASE WHEN ${videos.titleNorm} ILIKE ${`%${tn}%`} THEN 45 ELSE 0 END`,
+      sql<number>`CASE WHEN REPLACE(${videos.titleNorm}, ' ', '') ILIKE ${`%${tn}%`} THEN 40 ELSE 0 END`,
+      sql<number>`CASE WHEN ${channels.name} ILIKE ${`%${tokens[i]}%`} THEN 30 ELSE 0 END`,
+      sql<number>`CASE WHEN ${channels.nameNorm} ILIKE ${`%${tn}%`} THEN 28 ELSE 0 END`,
+      sql<number>`CASE WHEN ${videos.description} ILIKE ${`%${tokens[i]}%`} THEN 10 ELSE 0 END`,
     ]),
   ];
   const score = sql<number>`(${sql.join(scoreParts, sql` + `)})`;
@@ -340,17 +357,26 @@ export async function suggestVideos(query: string, limit: number = 8) {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
+  const trimmedNorm = normalizeVi(trimmed);
   const tokens = trimmed.split(/\s+/).filter(Boolean).slice(0, 5);
+  const tokensNorm = tokens.map(normalizeVi);
 
-  const tokenConditions = tokens.flatMap(token => [
-    ilike(videos.title, `%${token}%`),
-    ilike(channels.name, `%${token}%`),
-  ]);
+  const tokenConditions = tokens.flatMap((token, i) => {
+    const tn = tokensNorm[i];
+    return [
+      ilike(videos.title, `%${token}%`),
+      ilike(channels.name, `%${token}%`),
+      ilike(videos.titleNorm, `%${tn}%`),
+      ilike(channels.nameNorm, `%${tn}%`),
+      sql<boolean>`REPLACE(${videos.titleNorm}, ' ', '') ILIKE ${`%${tn}%`}`,
+    ];
+  });
 
   const scoreParts = [
     sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${trimmed}%`} THEN 100 ELSE 0 END`,
-    ...tokens.map(token =>
-      sql<number>`CASE WHEN ${videos.title} ILIKE ${`%${token}%`} THEN 50 ELSE 0 END`
+    sql<number>`CASE WHEN ${videos.titleNorm} ILIKE ${`%${trimmedNorm}%`} THEN 90 ELSE 0 END`,
+    ...tokensNorm.map((tn, i) =>
+      sql<number>`CASE WHEN ${videos.titleNorm} ILIKE ${`%${tn}%`} OR REPLACE(${videos.titleNorm}, ' ', '') ILIKE ${`%${tn}%`} THEN 50 ELSE 0 END`
     ),
   ];
   const score = sql<number>`(${sql.join(scoreParts, sql` + `)})`;

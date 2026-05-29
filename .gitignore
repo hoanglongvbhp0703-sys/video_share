@@ -136,6 +136,7 @@ references/
 server/add-*.mjs
 server/check-*.mjs
 server/rename-*.mjs
+server/backfill-*.mjs
 server/set-default-password.mjs
 
 # AI assistant internal docs (not for public repo)
