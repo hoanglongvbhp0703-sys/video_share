@@ -9,6 +9,7 @@ import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { Camera, ImagePlus, Radio, Video, Tv, Users, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ChannelParams {
   id?: string;
@@ -18,6 +19,7 @@ export default function Channel() {
   const { id } = useParams<ChannelParams>();
   const [, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [localBannerUrl, setLocalBannerUrl] = useState<string | null>(null);
 
@@ -71,20 +73,20 @@ export default function Channel() {
       else setLocalBannerUrl(data.url);
       utils.channels.getMyChannel.invalidate();
       utils.channels.getById.invalidate();
-      toast.success(variables.type === "avatar" ? "Đã cập nhật ảnh đại diện kênh" : "Đã cập nhật ảnh bìa kênh");
+      toast.success(variables.type === "avatar" ? t("channel.avatarUpdated") : t("channel.bannerUpdated"));
     },
-    onError: () => toast.error("Tải ảnh lên thất bại"),
+    onError: () => toast.error(t("channel.uploadFailed")),
   });
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, type: "avatar" | "banner") => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast.error("Vui lòng chọn file ảnh");
+      toast.error(t("channel.imageError"));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Ảnh không được vượt quá 5MB");
+      toast.error(t("channel.imageTooLarge"));
       return;
     }
     const buffer = await file.arrayBuffer();
@@ -98,13 +100,13 @@ export default function Channel() {
   };
 
   const handleToggleSubscribe = () => {
-    if (!isAuthenticated) { toast.error("Vui lòng đăng nhập"); return; }
+    if (!isAuthenticated) { toast.error(t("channel.loginError")); return; }
     if (!activeChannelId) return;
     toggleSubscribeMutation.mutate(
       { channelId: activeChannelId },
       {
         onSuccess: (result) => {
-          toast.success(result ? "Đã đăng ký kênh" : "Đã hủy đăng ký");
+          toast.success(result ? t("channel.subscribeSuccess") : t("channel.unsubscribeSuccess"));
           utils.subscriptions.isSubscribed.invalidate({ channelId: activeChannelId });
           utils.subscriptions.getCount.invalidate({ channelId: activeChannelId });
         },
@@ -134,7 +136,6 @@ export default function Channel() {
   return (
     <Layout>
       <div className="w-full">
-        {/* Hidden file inputs */}
         <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
           onChange={(e) => handleImageChange(e, "avatar")} />
         <input ref={bannerInputRef} type="file" accept="image/*" className="hidden"
@@ -147,7 +148,7 @@ export default function Channel() {
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <span className="text-primary/40 text-sm">
-                {isMyChannel ? "Chưa có ảnh bìa — click để thêm" : ""}
+                {isMyChannel ? t("channel.noBanner") : ""}
               </span>
             </div>
           )}
@@ -160,7 +161,7 @@ export default function Channel() {
               <div className="flex items-center gap-2 bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium">
                 <ImagePlus className="w-4 h-4" />
                 {isUploading && updateImagesMutation.variables?.type === "banner"
-                  ? "Đang tải..." : "Đổi ảnh bìa"}
+                  ? t("channel.uploading") : t("channel.changeBanner")}
               </div>
             </button>
           )}
@@ -169,7 +170,6 @@ export default function Channel() {
         {/* Channel Info */}
         <div className="px-4 md:px-6 py-6 border-b border-border">
           <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
-            {/* Avatar with edit overlay */}
             <div className="relative group w-24 h-24 -mt-12 flex-shrink-0">
               <Avatar className="w-24 h-24 border-4 border-background">
                 {avatarUrl && <AvatarImage src={avatarUrl} alt={displayChannel.name} className="object-cover" />}
@@ -194,21 +194,21 @@ export default function Channel() {
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-foreground">{displayChannel.name}</h1>
               <p className="text-muted-foreground mt-1">
-                {subscriberCount?.toLocaleString() || 0} người đăng ký
+                {subscriberCount?.toLocaleString() || 0} {t("channel.subscribers")}
               </p>
             </div>
 
             {isMyChannel ? (
               <div className="flex gap-2">
                 <Button onClick={() => navigate("/upload")} variant="outline">
-                  Upload video
+                  {t("channel.uploadVideo")}
                 </Button>
                 <Button
                   onClick={() => navigate("/go-live")}
                   className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
                 >
                   <Radio className="w-4 h-4" />
-                  Go Live
+                  {t("channel.goLive")}
                 </Button>
               </div>
             ) : (
@@ -224,7 +224,7 @@ export default function Channel() {
                   </Button>
                 )}
                 <Button onClick={handleToggleSubscribe} variant={subscribed ? "outline" : "default"}>
-                  {subscribed ? "Đã đăng ký" : "Đăng ký"}
+                  {subscribed ? t("channel.subscribed") : t("channel.subscribe")}
                 </Button>
               </div>
             )}
@@ -246,7 +246,7 @@ export default function Channel() {
             }`}
           >
             <Video className="w-4 h-4" />
-            Video
+            {t("channel.videoTab")}
             {videos && videos.length > 0 && (
               <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{videos.length}</span>
             )}
@@ -260,7 +260,7 @@ export default function Channel() {
             }`}
           >
             <Tv className="w-4 h-4" />
-            Livestream
+            {t("channel.livestreamTab")}
             {pastLivestreams && pastLivestreams.length > 0 && (
               <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{pastLivestreams.length}</span>
             )}
@@ -289,7 +289,7 @@ export default function Channel() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">Chưa có video nào</p>
+                  <p className="text-muted-foreground">{t("channel.noVideos")}</p>
                 </div>
               )}
             </>
@@ -319,58 +319,58 @@ export default function Channel() {
                         : `${Math.floor(durationMs / 60000)}p`
                       : null;
                     return (
-                    <div
-                      key={stream.id}
-                      title="Livestream đã kết thúc — không thể xem lại vì không được ghi hình"
-                      className="flex flex-col gap-2 group cursor-default"
-                    >
-                      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
-                        {stream.thumbnailUrl ? (
-                          <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover opacity-80" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Tv className="w-10 h-10 text-muted-foreground/40" />
-                          </div>
-                        )}
-                        <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-                          Đã phát
-                        </span>
-                        {durationStr && (
-                          <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {durationStr}
+                      <div
+                        key={stream.id}
+                        title={t("channel.cannotRewatch")}
+                        className="flex flex-col gap-2 group cursor-default"
+                      >
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
+                          {stream.thumbnailUrl ? (
+                            <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover opacity-80" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Tv className="w-10 h-10 text-muted-foreground/40" />
+                            </div>
+                          )}
+                          <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+                            {t("channel.aired")}
                           </span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground line-clamp-2">
-                          {stream.title || "Livestream không có tiêu đề"}
-                        </p>
-                        <div className="flex items-center gap-3 mt-0.5">
-                          <p className="text-xs text-muted-foreground">
-                            {stream.startedAt
-                              ? new Date(stream.startedAt).toLocaleDateString("vi-VN", {
-                                  day: "2-digit", month: "2-digit", year: "numeric",
-                                  hour: "2-digit", minute: "2-digit",
-                                })
-                              : ""}
-                          </p>
-                          {(stream.viewerCount ?? 0) > 0 && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              {stream.viewerCount} lượt xem
-                            </p>
+                          {durationStr && (
+                            <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {durationStr}
+                            </span>
                           )}
                         </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground line-clamp-2">
+                            {stream.title || t("channel.noTitle")}
+                          </p>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            <p className="text-xs text-muted-foreground">
+                              {stream.startedAt
+                                ? new Date(stream.startedAt).toLocaleDateString("vi-VN", {
+                                    day: "2-digit", month: "2-digit", year: "numeric",
+                                    hour: "2-digit", minute: "2-digit",
+                                  })
+                                : ""}
+                            </p>
+                            {(stream.viewerCount ?? 0) > 0 && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {stream.viewerCount} {t("channel.views")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
                     );
                   })}
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <Tv className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="text-muted-foreground">Chưa có buổi livestream nào</p>
+                  <p className="text-muted-foreground">{t("channel.noLivestreams")}</p>
                 </div>
               )}
             </>
