@@ -9,9 +9,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { ThumbsUp, ThumbsDown, Share2, MoreVertical, Bell } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/useDateLocale";
 
 interface VideoParams {
   id: string;
@@ -20,12 +21,13 @@ interface VideoParams {
 export default function Watch() {
   const { id } = useParams<VideoParams>();
   const { user, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
+  const dateLocale = useDateLocale();
   const videoId = parseInt(id || "0");
 
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  // Video + channel
   const { data: video, isLoading: videoLoading } = trpc.videos.getById.useQuery(
     { id: videoId },
     { enabled: !!videoId }
@@ -36,13 +38,11 @@ export default function Watch() {
     { enabled: !!video?.channelId }
   );
 
-  // Comments
   const { data: comments, refetch: refetchComments } = trpc.comments.getByVideoId.useQuery(
     { videoId, limit: 20, offset: 0 },
     { enabled: !!videoId }
   );
 
-  // User names for comments
   const commentUserIds = useMemo(
     () => (comments ? Array.from(new Set(comments.map((c) => c.userId))) : []),
     [comments]
@@ -54,30 +54,26 @@ export default function Watch() {
   const userMap = useMemo(
     () =>
       commentUsers
-        ? Object.fromEntries(commentUsers.map((u) => [u.id, u.name ?? `Người dùng ${u.id}`]))
+        ? Object.fromEntries(commentUsers.map((u) => [u.id, u.name ?? t("watch.user", { id: u.id })]))
         : {},
-    [commentUsers]
+    [commentUsers, t]
   );
 
-  // Like
   const { data: myLike, refetch: refetchLike } = trpc.likes.getMyLike.useQuery(
     { videoId },
     { enabled: !!videoId }
   );
 
-  // Subscription
   const { data: isSubscribed, refetch: refetchSubscription } = trpc.subscriptions.isSubscribed.useQuery(
     { channelId: video?.channelId ?? 0 },
     { enabled: !!video?.channelId && isAuthenticated }
   );
 
-  // Related videos — same channel as current video
   const { data: relatedVideos } = trpc.channels.getVideos.useQuery(
     { channelId: video?.channelId ?? 0, limit: 6, offset: 0 },
     { enabled: !!video?.channelId }
   );
 
-  // Mutations
   const incrementViewMutation = trpc.videos.incrementView.useMutation();
   const recordHistoryMutation = trpc.watchHistory.record.useMutation();
   const createCommentMutation = trpc.comments.create.useMutation();
@@ -87,13 +83,12 @@ export default function Watch() {
       refetchLike();
       utils.videos.getById.invalidate({ id: videoId });
     },
-    onError: (err) => toast.error(err.message || "Không thể thực hiện thao tác"),
+    onError: (err) => toast.error(err.message || t("watch.likeError")),
   });
   const toggleSubscriptionMutation = trpc.subscriptions.toggle.useMutation({
     onSuccess: () => refetchSubscription(),
   });
 
-  // Increment view + record watch history on mount
   useEffect(() => {
     if (videoId) {
       incrementViewMutation.mutate({ id: videoId });
@@ -106,11 +101,11 @@ export default function Watch() {
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      toast.error("Vui lòng đăng nhập để bình luận");
+      toast.error(t("watch.commentLoginError"));
       return;
     }
     if (!commentText.trim()) {
-      toast.error("Bình luận không được để trống");
+      toast.error(t("watch.commentEmptyError"));
       return;
     }
 
@@ -119,9 +114,9 @@ export default function Watch() {
       await createCommentMutation.mutateAsync({ videoId, content: commentText });
       setCommentText("");
       await refetchComments();
-      toast.success("Bình luận đã được thêm");
+      toast.success(t("watch.commentSuccess"));
     } catch {
-      toast.error("Lỗi khi thêm bình luận");
+      toast.error(t("watch.commentError"));
     } finally {
       setIsSubmittingComment(false);
     }
@@ -129,7 +124,7 @@ export default function Watch() {
 
   const handleToggleLike = (type: "like" | "dislike") => {
     if (!isAuthenticated) {
-      toast.error("Vui lòng đăng nhập");
+      toast.error(t("watch.loginError"));
       return;
     }
     toggleLikeMutation.mutate({ videoId, type });
@@ -137,7 +132,7 @@ export default function Watch() {
 
   const handleToggleSubscription = () => {
     if (!isAuthenticated) {
-      toast.error("Vui lòng đăng nhập để đăng ký kênh");
+      toast.error(t("watch.loginToSubscribe"));
       return;
     }
     if (!video?.channelId) return;
@@ -145,7 +140,7 @@ export default function Watch() {
       { channelId: video.channelId },
       {
         onSuccess: (subscribed) => {
-          toast.success(subscribed ? "Đã đăng ký kênh" : "Đã hủy đăng ký kênh");
+          toast.success(subscribed ? t("watch.subscribeSuccess") : t("watch.unsubscribeSuccess"));
         },
       }
     );
@@ -167,7 +162,7 @@ export default function Watch() {
     return (
       <Layout>
         <div className="p-4 md:p-6 text-center">
-          <p className="text-gray-600">Video không tìm thấy</p>
+          <p className="text-gray-600">{t("watch.videoNotFound")}</p>
         </div>
       </Layout>
     );
@@ -176,7 +171,6 @@ export default function Watch() {
   return (
     <Layout>
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
-        {/* Video Player */}
         <VideoPlayer
           src={video.videoUrl || ""}
           poster={video.thumbnailUrl || undefined}
@@ -185,12 +179,9 @@ export default function Watch() {
         <div className="mb-6" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
           <div className="lg:col-span-2">
-            {/* Video Title */}
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{video.title}</h1>
 
-            {/* Channel Info and Subscribe */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
               <Link href={`/channel/${video.channelId}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <Avatar className="w-10 h-10">
@@ -199,9 +190,9 @@ export default function Watch() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium text-gray-900">{channel?.name ?? "Đang tải..."}</p>
+                  <p className="font-medium text-gray-900">{channel?.name ?? t("common.loading")}</p>
                   <p className="text-sm text-gray-600">
-                    {channel?.subscriberCount?.toLocaleString() ?? 0} người đăng ký
+                    {channel?.subscriberCount?.toLocaleString() ?? 0} {t("watch.subscribers")}
                   </p>
                 </div>
               </Link>
@@ -213,12 +204,11 @@ export default function Watch() {
                   className="gap-2"
                 >
                   <Bell className="w-4 h-4" />
-                  {isSubscribed ? "Đã đăng ký" : "Đăng ký"}
+                  {isSubscribed ? t("watch.subscribed") : t("watch.subscribe")}
                 </Button>
               )}
             </div>
 
-            {/* Like/Dislike and Share */}
             <div className="flex items-center gap-2 mb-6">
               <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
                 <button
@@ -244,7 +234,7 @@ export default function Watch() {
 
               <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-full transition-colors">
                 <Share2 className="w-5 h-5" />
-                <span className="text-sm">Chia sẻ</span>
+                <span className="text-sm">{t("watch.share")}</span>
               </button>
 
               <button className="ml-auto p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -252,18 +242,16 @@ export default function Watch() {
               </button>
             </div>
 
-            {/* Video Description */}
             <div className="bg-gray-100 rounded-lg p-4 mb-6">
               <p className="text-sm font-medium text-gray-900 mb-2">
-                {video.viewCount.toLocaleString()} lượt xem •{" "}
-                {formatDistanceToNow(new Date(video.createdAt), { locale: vi, addSuffix: true })}
+                {video.viewCount.toLocaleString()} {t("watch.views")} •{" "}
+                {formatDistanceToNow(new Date(video.createdAt), { locale: dateLocale, addSuffix: true })}
               </p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{video.description}</p>
             </div>
 
-            {/* Comments Section */}
             <div className="mb-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">{video.commentCount} bình luận</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">{video.commentCount} {t("watch.comments")}</h2>
 
               {isAuthenticated ? (
                 <form onSubmit={handleAddComment} className="mb-6">
@@ -274,7 +262,7 @@ export default function Watch() {
                       </AvatarFallback>
                     </Avatar>
                     <Textarea
-                      placeholder="Thêm bình luận công khai..."
+                      placeholder={t("watch.addComment")}
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       className="resize-none"
@@ -283,16 +271,17 @@ export default function Watch() {
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setCommentText("")} disabled={isSubmittingComment}>
-                      Hủy
+                      {t("watch.cancel")}
                     </Button>
                     <Button disabled={!commentText.trim() || isSubmittingComment} type="submit">
-                      Bình luận
+                      {t("watch.comment")}
                     </Button>
                   </div>
                 </form>
               ) : (
                 <p className="text-sm text-gray-600 mb-6">
-                  <Link href="/login" className="text-primary hover:underline">Đăng nhập</Link> để bình luận
+                  <Link href="/login" className="text-primary hover:underline">{t("watch.loginToComment")}</Link>
+                  {t("watch.loginToCommentSuffix")}
                 </p>
               )}
 
@@ -318,30 +307,29 @@ export default function Watch() {
                       <div className="flex-1">
                         {comment.channelId ? (
                           <Link href={`/channel/${comment.channelId}`} className="text-sm font-medium text-gray-900 hover:text-primary transition-colors">
-                            {userMap[comment.userId] ?? `Người dùng ${comment.userId}`}
+                            {userMap[comment.userId] ?? t("watch.user", { id: comment.userId })}
                           </Link>
                         ) : (
                           <p className="text-sm font-medium text-gray-900">
-                            {userMap[comment.userId] ?? `Người dùng ${comment.userId}`}
+                            {userMap[comment.userId] ?? t("watch.user", { id: comment.userId })}
                           </p>
                         )}
                         <p className="text-xs text-gray-600 mb-1">
-                          {formatDistanceToNow(new Date(comment.createdAt), { locale: vi, addSuffix: true })}
+                          {formatDistanceToNow(new Date(comment.createdAt), { locale: dateLocale, addSuffix: true })}
                         </p>
                         <p className="text-sm text-gray-700">{comment.content}</p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-gray-600">Chưa có bình luận nào</p>
+                  <p className="text-sm text-gray-600">{t("watch.noComments")}</p>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Sidebar - Related Videos */}
           <div className="lg:col-span-1">
-            <h3 className="font-bold text-gray-900 mb-4">Video khác của kênh</h3>
+            <h3 className="font-bold text-gray-900 mb-4">{t("watch.relatedVideos")}</h3>
             <div className="space-y-3">
               {relatedVideos && relatedVideos.length > 0 ? (
                 relatedVideos
@@ -376,13 +364,13 @@ export default function Watch() {
                           {relatedVideo.title}
                         </p>
                         <p className="text-xs text-gray-600 mt-1">
-                          {relatedVideo.viewCount.toLocaleString()} lượt xem
+                          {relatedVideo.viewCount.toLocaleString()} {t("watch.views")}
                         </p>
                       </div>
                     </Link>
                   ))
               ) : (
-                <div className="text-sm text-gray-600">Không có video liên quan</div>
+                <div className="text-sm text-gray-600">{t("watch.noRelated")}</div>
               )}
             </div>
           </div>
