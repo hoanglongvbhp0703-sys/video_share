@@ -661,21 +661,24 @@ Guidelines:
               ...input.messages,
             ],
             response_format: { type: "json_object" },
-            temperature: 0.7,
-            max_tokens: 300,
+            reasoning_effort: "low",
+            max_tokens: 1000,
           }),
         });
 
         if (!res.ok) {
           const errText = await res.text();
-          console.error("xAI API error:", errText);
+          console.error("xAI API error:", res.status, errText);
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI service error" });
         }
 
         const data = await res.json() as {
           choices: Array<{ message: { content: string } }>;
         };
-        const content = data.choices[0]?.message?.content ?? "{}";
+        const raw = data.choices[0]?.message?.content ?? "{}";
+
+        // Strip markdown code fences nếu model bọc trong ```json ... ```
+        const content = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
         try {
           const parsed = JSON.parse(content) as {
@@ -690,7 +693,8 @@ Guidelines:
             searchQuery: parsed.searchQuery ?? null,
           };
         } catch {
-          return { message: content, category: null, searchQuery: null };
+          // Nếu parse JSON thất bại, trả raw text như message bình thường
+          return { message: raw, category: null, searchQuery: null };
         }
       }),
   }),
