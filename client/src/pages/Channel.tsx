@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Camera, ImagePlus, Radio, Video, Tv } from "lucide-react";
+import { Camera, ImagePlus, Radio, Video, Tv, Users, Clock } from "lucide-react";
 
 interface ChannelParams {
   id?: string;
@@ -309,11 +309,24 @@ export default function Channel() {
                 </div>
               ) : pastLivestreams && pastLivestreams.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {pastLivestreams.map((stream) => (
-                    <div key={stream.id} className="flex flex-col gap-2 group cursor-default">
+                  {pastLivestreams.map((stream) => {
+                    const durationMs = stream.startedAt && stream.endedAt
+                      ? new Date(stream.endedAt).getTime() - new Date(stream.startedAt).getTime()
+                      : null;
+                    const durationStr = durationMs != null
+                      ? durationMs >= 3600000
+                        ? `${Math.floor(durationMs / 3600000)}h ${Math.floor((durationMs % 3600000) / 60000)}p`
+                        : `${Math.floor(durationMs / 60000)}p`
+                      : null;
+                    return (
+                    <div
+                      key={stream.id}
+                      title="Livestream đã kết thúc — không thể xem lại vì không được ghi hình"
+                      className="flex flex-col gap-2 group cursor-default"
+                    >
                       <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
                         {stream.thumbnailUrl ? (
-                          <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover" />
+                          <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover opacity-80" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Tv className="w-10 h-10 text-muted-foreground/40" />
@@ -322,22 +335,37 @@ export default function Channel() {
                         <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
                           Đã phát
                         </span>
+                        {durationStr && (
+                          <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {durationStr}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-foreground line-clamp-2">
                           {stream.title || "Livestream không có tiêu đề"}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {stream.startedAt
-                            ? new Date(stream.startedAt).toLocaleDateString("vi-VN", {
-                                day: "2-digit", month: "2-digit", year: "numeric",
-                                hour: "2-digit", minute: "2-digit",
-                              })
-                            : ""}
-                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className="text-xs text-muted-foreground">
+                            {stream.startedAt
+                              ? new Date(stream.startedAt).toLocaleDateString("vi-VN", {
+                                  day: "2-digit", month: "2-digit", year: "numeric",
+                                  hour: "2-digit", minute: "2-digit",
+                                })
+                              : ""}
+                          </p>
+                          {(stream.viewerCount ?? 0) > 0 && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              {stream.viewerCount} lượt xem
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">

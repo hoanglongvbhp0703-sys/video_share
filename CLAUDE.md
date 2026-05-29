@@ -141,12 +141,15 @@ npm run db:setup && npm run seed && npm run db:triggers
 ### Còn thiếu / cần làm (ưu tiên cao → thấp)
 
 #### 🔴 Bug chưa fix
-- **Livestream history chỉ có vỏ, không xem được**: Tab "Livestream" trên Channel page hiển thị card nhưng không có link → không click vào xem lại được. Livestream WebRTC là P2P real-time, không record — cần quyết định: (1) chỉ hiển thị metadata (không xem lại), hoặc (2) record stream → lưu file video → xem lại như video thường.
+*(không còn bug nào được ghi nhận)*
 
 #### 🟡 Cải tiến
 - **Upload video lớn (>35MB)**: cần multipart upload thay vì gửi bytes qua tRPC body (limit 50MB thực tế ~35MB do base64 overhead)
 - **Dark mode toàn diện**: Layout/TopNav/Sidebar/VideoCard đã dùng semantic tokens. Một số trang phụ (Profile, Notifications, Playlists, History…) còn dùng `bg-white` cứng — đã có global CSS override trong `index.css` nhưng chưa test hết.
 - **Trang ComponentShowcase**: `client/src/pages/ComponentShowcase.tsx` là trang dev nội bộ, chưa có route — cân nhắc xóa hoặc ẩn
+
+### Đã làm — Session 2026-05-29 (fix bug)
+- ✅ **Livestream history card đầy đủ thông tin** (`client/src/pages/Channel.tsx`): thay thế card "vỏ" không tương tác bằng card hiển thị đầy đủ metadata — thời lượng stream (tính từ startedAt → endedAt), viewerCount, tooltip "Không thể xem lại vì không được ghi hình". Chọn option (1): chỉ hiển thị metadata. Icon `Clock` + `Users` từ lucide-react.
 
 ### Đã làm — Session 2026-05-29 (session này)
 - ✅ **drizzle.config.ts dùng DIRECT_URL** (`drizzle.config.ts`, `.env`): `DIRECT_URL` trỏ session pooler port 5432. `drizzle-kit push` dùng `DIRECT_URL ?? DATABASE_URL` — không còn bị treo "Pulling schema from database" khi dùng transaction pooler. Commit `5db5253`.
