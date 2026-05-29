@@ -142,6 +142,10 @@ server/set-default-password.mjs
 # AI assistant internal docs (not for public repo)
 CLAUDE.md
 
+# Playwright test output (generated — not source)
+playwright-report/
+test-results/
+
 # Empty placeholder files
 .gitkeep
 **/.gitkeep
