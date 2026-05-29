@@ -77,6 +77,74 @@ import { eq } from "drizzle-orm";
 import { videos } from "../drizzle/schema";
 import { storagePut } from "./storage";
 
+type ChatResult = { message: string; category: string | null; searchQuery: string | null };
+
+function keywordFallback(userMsg: string, language: string): ChatResult {
+  const q = userMsg.toLowerCase();
+
+  const RULES: Array<{ patterns: string[]; category: string; replies: Record<string, string> }> = [
+    {
+      category: "music",
+      patterns: ["nhạc", "nhac", "music", "âm nhạc", "am nhac", "mv", "ca sĩ", "ca si", "bài hát", "bai hat", "ost", "音楽", "歌"],
+      replies: { vi: "Tuyệt! Đây là những video âm nhạc hay nhất cho bạn 🎵", en: "Great choice! Here are some music videos for you 🎵", ja: "素晴らしい！音楽動画をご紹介します 🎵" },
+    },
+    {
+      category: "gaming",
+      patterns: ["game", "gaming", "trò chơi", "tro choi", "esport", "gameplay", "playthrough", "minecraft", "lol", "pubg", "ゲーム"],
+      replies: { vi: "Gaming it is! Xem ngay những video game hấp dẫn 🎮", en: "Let's game! Here are some gaming videos for you 🎮", ja: "ゲーム動画をどうぞ！ 🎮" },
+    },
+    {
+      category: "movies",
+      patterns: ["phim", "film", "movie", "điện ảnh", "dien anh", "series", "tập phim", "tap phim", "trailer", "映画", "ドラマ"],
+      replies: { vi: "Hay lắm! Đây là những video phim hot nhất 🎬", en: "Great! Here are the hottest movie videos for you 🎬", ja: "映画動画をご用意しました 🎬" },
+    },
+    {
+      category: "sports",
+      patterns: ["thể thao", "the thao", "sport", "bóng đá", "bong da", "football", "soccer", "tennis", "gym", "fitness", "スポーツ", "サッカー"],
+      replies: { vi: "Thể thao là số 1! Đây là những video thể thao hot 🏃", en: "Sports fan! Check out these sports videos 🏃", ja: "スポーツ動画をどうぞ！ 🏃" },
+    },
+    {
+      category: "news",
+      patterns: ["tin tức", "tin tuc", "news", "thời sự", "thoi su", "báo", "bao", "sự kiện", "su kien", "ニュース", "時事"],
+      replies: { vi: "Cập nhật ngay! Đây là những video tin tức mới nhất 📰", en: "Stay informed! Here are the latest news videos 📰", ja: "最新ニュース動画をどうぞ 📰" },
+    },
+    {
+      category: "live",
+      patterns: ["live", "trực tiếp", "truc tiep", "stream", "phát sóng", "phat song", "ライブ", "配信"],
+      replies: { vi: "Xem trực tiếp ngay! Đây là các buổi stream 📡", en: "Going live! Here are some livestream videos 📡", ja: "ライブ配信動画をどうぞ 📡" },
+    },
+  ];
+
+  for (const rule of RULES) {
+    if (rule.patterns.some(p => q.includes(p))) {
+      return {
+        message: rule.replies[language] ?? rule.replies["en"],
+        category: rule.category,
+        searchQuery: null,
+      };
+    }
+  }
+
+  // Không match category → dùng làm search query
+  const isQuestion = q.length < 3 || ["?", "gì", "gi", "what", "nào", "nao"].some(w => q.includes(w));
+  if (isQuestion || q.length < 4) {
+    const askAgain: Record<string, string> = {
+      vi: "Bạn muốn xem gì? Thử nhập: phim, nhạc, gaming, thể thao, tin tức hoặc live nhé! 😊",
+      en: "What would you like to watch? Try: movies, music, gaming, sports, news, or live! 😊",
+      ja: "何を見たいですか？映画、音楽、ゲーム、スポーツ、ニュース、ライブなど入力してみて！ 😊",
+    };
+    return { message: askAgain[language] ?? askAgain["en"], category: null, searchQuery: null };
+  }
+
+  // Dùng input làm keyword search
+  const searching: Record<string, string> = {
+    vi: `Tìm video về "${userMsg}" cho bạn nhé! 🔍`,
+    en: `Searching videos about "${userMsg}" for you! 🔍`,
+    ja: `「${userMsg}」の動画を検索します！ 🔍`,
+  };
+  return { message: searching[language] ?? searching["en"], category: null, searchQuery: userMsg };
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -616,86 +684,51 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const apiKey = process.env.XAI_API_KEY;
-        if (!apiKey) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "AI service not configured",
-          });
+        const lastUserMsg = [...input.messages].reverse().find(m => m.role === "user")?.content ?? "";
+
+        // Thử gọi Grok nếu có API key hợp lệ
+        if (apiKey) {
+          try {
+            const langName =
+              input.language === "vi" ? "Vietnamese" :
+              input.language === "ja" ? "Japanese" : "English";
+
+            const systemPrompt = `You are a friendly video recommendation assistant for VideoShare.
+Available categories: news, gaming, music, movies, live, sports
+Respond ONLY with raw JSON (no markdown): {"message":"...","category":"music|gaming|movies|news|live|sports|null","searchQuery":"keywords or null"}
+Respond in ${langName}. Be concise (1-2 sentences).`;
+
+            const res = await fetch("https://api.x.ai/v1/chat/completions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+              body: JSON.stringify({
+                model: "grok-3-mini",
+                messages: [{ role: "system", content: systemPrompt }, ...input.messages],
+                response_format: { type: "json_object" },
+                reasoning_effort: "low",
+                max_tokens: 1000,
+              }),
+            });
+
+            if (res.ok) {
+              const data = await res.json() as { choices: Array<{ message: { content: string } }> };
+              const raw = (data.choices[0]?.message?.content ?? "{}").replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+              const parsed = JSON.parse(raw) as { message?: string; category?: string | null; searchQuery?: string | null };
+              const validCategories = ["news", "gaming", "music", "movies", "live", "sports"];
+              return {
+                message: parsed.message ?? keywordFallback(lastUserMsg, input.language).message,
+                category: validCategories.includes(parsed.category ?? "") ? (parsed.category ?? null) : null,
+                searchQuery: parsed.searchQuery ?? null,
+              };
+            }
+            console.error("xAI API error:", res.status, await res.text());
+          } catch (e) {
+            console.error("xAI call failed, using keyword fallback:", e);
+          }
         }
 
-        const langName =
-          input.language === "vi" ? "Vietnamese" :
-          input.language === "ja" ? "Japanese" : "English";
-
-        const systemPrompt = `You are a friendly video recommendation assistant for VideoShare, a video sharing platform.
-Help users find videos they want to watch by understanding their preferences.
-
-Available video categories on this platform: news, gaming, music, movies, live, sports
-
-Always respond with a valid JSON object in this exact format (no markdown, no explanation, raw JSON only):
-{
-  "message": "Your friendly response in ${langName}",
-  "category": "one of: news | gaming | music | movies | live | sports | null",
-  "searchQuery": "specific keywords to search for, or null"
-}
-
-Guidelines:
-- Always respond in ${langName}
-- Be warm and conversational (1-2 sentences max)
-- Map user interests to categories: nhạc/âm nhạc/music → music, game/gaming → gaming, phim/movies → movies, thể thao/bóng đá/sports → sports, tin tức/news → news, trực tiếp/live/stream → live
-- If the user wants a specific artist, show name, or topic → set searchQuery to those keywords
-- If category is clear and general → set category, set searchQuery to null
-- If very unclear → ask a friendly follow-up and set both to null
-- Do NOT make up video titles`;
-
-        const res = await fetch("https://api.x.ai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: "grok-3-mini",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...input.messages,
-            ],
-            response_format: { type: "json_object" },
-            reasoning_effort: "low",
-            max_tokens: 1000,
-          }),
-        });
-
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error("xAI API error:", res.status, errText);
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI service error" });
-        }
-
-        const data = await res.json() as {
-          choices: Array<{ message: { content: string } }>;
-        };
-        const raw = data.choices[0]?.message?.content ?? "{}";
-
-        // Strip markdown code fences nếu model bọc trong ```json ... ```
-        const content = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-
-        try {
-          const parsed = JSON.parse(content) as {
-            message?: string;
-            category?: string | null;
-            searchQuery?: string | null;
-          };
-          const validCategories = ["news", "gaming", "music", "movies", "live", "sports"];
-          return {
-            message: parsed.message ?? "Xin lỗi, hãy thử lại.",
-            category: validCategories.includes(parsed.category ?? "") ? (parsed.category ?? null) : null,
-            searchQuery: parsed.searchQuery ?? null,
-          };
-        } catch {
-          // Nếu parse JSON thất bại, trả raw text như message bình thường
-          return { message: raw, category: null, searchQuery: null };
-        }
+        // Fallback: keyword matching thông minh (không cần API key)
+        return keywordFallback(lastUserMsg, input.language);
       }),
   }),
 });
