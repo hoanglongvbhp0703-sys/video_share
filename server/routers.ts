@@ -70,6 +70,7 @@ import {
   getLiveChats,
   updateLivestreamViewerCount,
   getEndedLivestreamsByChannel,
+  deleteLivestream,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -594,6 +595,14 @@ export const appRouter = router({
     updateViewerCount: protectedProcedure
       .input(z.object({ id: z.number(), count: z.number() }))
       .mutation(({ input }) => updateLivestreamViewerCount(input.id, input.count)),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const channel = await getOrCreateChannel(ctx.user.id, ctx.user.name || "User");
+        await deleteLivestream(input.id, channel.id);
+        return { success: true };
+      }),
   }),
 });
 

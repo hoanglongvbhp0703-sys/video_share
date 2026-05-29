@@ -240,6 +240,7 @@ export async function getVideosByChannelId(channelId: number, limit: number = 20
       createdAt: videos.createdAt,
       updatedAt: videos.updatedAt,
       channelName: channels.name,
+      channelAvatarUrl: channels.avatarUrl,
     })
     .from(videos)
     .leftJoin(channels, eq(videos.channelId, channels.id))
@@ -271,6 +272,7 @@ export async function getLatestVideos(limit: number = 20, offset: number = 0) {
       createdAt: videos.createdAt,
       updatedAt: videos.updatedAt,
       channelName: channels.name,
+      channelAvatarUrl: channels.avatarUrl,
     })
     .from(videos)
     .leftJoin(channels, eq(videos.channelId, channels.id))
@@ -341,6 +343,7 @@ export async function searchVideos(query: string, limit: number = 20, offset: nu
       createdAt: videos.createdAt,
       updatedAt: videos.updatedAt,
       channelName: channels.name,
+      channelAvatarUrl: channels.avatarUrl,
     })
     .from(videos)
     .leftJoin(channels, eq(videos.channelId, channels.id))
@@ -412,6 +415,7 @@ export async function getVideosByCategory(category: string, limit: number = 20, 
       createdAt: videos.createdAt,
       updatedAt: videos.updatedAt,
       channelName: channels.name,
+      channelAvatarUrl: channels.avatarUrl,
     })
     .from(videos)
     .leftJoin(channels, eq(videos.channelId, channels.id))
@@ -636,6 +640,7 @@ export async function getTrendingVideos(limit: number = 20, offset: number = 0) 
       createdAt: videos.createdAt,
       updatedAt: videos.updatedAt,
       channelName: channels.name,
+      channelAvatarUrl: channels.avatarUrl,
     })
     .from(videos)
     .leftJoin(channels, eq(videos.channelId, channels.id))
@@ -901,6 +906,7 @@ const VIDEO_SELECT_FIELDS = {
   createdAt: videos.createdAt,
   updatedAt: videos.updatedAt,
   channelName: channels.name,
+  channelAvatarUrl: channels.avatarUrl,
 };
 
 export async function getVideosByTag(tagName: string, limit: number = 20, offset: number = 0) {
@@ -1159,6 +1165,14 @@ export async function updateLivestreamViewerCount(id: number, count: number) {
   const db = await getDb();
   if (!db) return;
   await db.update(livestreams).set({ viewerCount: count }).where(eq(livestreams.id, id));
+}
+
+export async function deleteLivestream(id: number, channelId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(livestreamSignals).where(eq(livestreamSignals.livestreamId, id));
+  await db.delete(liveChats).where(eq(liveChats.livestreamId, id));
+  await db.delete(livestreams).where(and(eq(livestreams.id, id), eq(livestreams.channelId, channelId)));
 }
 
 // Viewer gửi WebRTC offer

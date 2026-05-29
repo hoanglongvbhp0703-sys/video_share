@@ -13,9 +13,12 @@ import { useTranslation } from "react-i18next";
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
 ];
 
-function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 8000): Promise<void> {
+function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 4000): Promise<void> {
   return new Promise(resolve => {
     if (pc.iceGatheringState === "complete") { resolve(); return; }
     const timer = setTimeout(resolve, timeoutMs);
@@ -58,7 +61,7 @@ export default function LiveWatch() {
     { livestreamId: livestream?.id ?? 0, viewerId, afterId: lastSignalId },
     {
       enabled: !!livestream && isAuthenticated && offerSent && viewerId > 0,
-      refetchInterval: 2000,
+      refetchInterval: 500,
       staleTime: 0,
     }
   );

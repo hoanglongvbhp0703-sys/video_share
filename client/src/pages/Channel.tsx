@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Camera, ImagePlus, Radio, Video, Tv, Users, Clock } from "lucide-react";
+import { Camera, ImagePlus, Radio, Video, Tv, Users, Clock, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface ChannelParams {
@@ -62,6 +62,13 @@ export default function Channel() {
   );
 
   const toggleSubscribeMutation = trpc.subscriptions.toggle.useMutation();
+  const deleteLivestreamMutation = trpc.livestreams.delete.useMutation({
+    onSuccess: () => {
+      utils.channels.getLivestreams.invalidate({ channelId: activeChannelId });
+      toast.success(t("channel.livestreamDeleted"));
+    },
+    onError: () => toast.error(t("channel.deleteFailed")),
+  });
 
   const { data: activeLivestream } = trpc.livestreams.getActiveByChannel.useQuery(
     { channelId: activeChannelId || 0 },
@@ -73,6 +80,8 @@ export default function Channel() {
       else setLocalBannerUrl(data.url);
       utils.channels.getMyChannel.invalidate();
       utils.channels.getById.invalidate();
+      utils.videos.list.invalidate();
+      utils.channels.getVideos.invalidate();
       toast.success(variables.type === "avatar" ? t("channel.avatarUpdated") : t("channel.bannerUpdated"));
     },
     onError: () => toast.error(t("channel.uploadFailed")),
@@ -319,14 +328,13 @@ export default function Channel() {
                         : `${Math.floor(durationMs / 60000)}p`
                       : null;
                     return (
-                      <div
-                        key={stream.id}
-                        title={t("channel.cannotRewatch")}
-                        className="flex flex-col gap-2 group cursor-default"
-                      >
-                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
+                      <div key={stream.id} className="flex flex-col gap-2 group">
+                        <div
+                          className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted cursor-pointer"
+                          onClick={() => navigate(`/live/${activeChannelId}`)}
+                        >
                           {stream.thumbnailUrl ? (
-                            <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover opacity-80" />
+                            <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <Tv className="w-10 h-10 text-muted-foreground/40" />
@@ -342,26 +350,42 @@ export default function Channel() {
                             </span>
                           )}
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground line-clamp-2">
-                            {stream.title || t("channel.noTitle")}
-                          </p>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <p className="text-xs text-muted-foreground">
-                              {stream.startedAt
-                                ? new Date(stream.startedAt).toLocaleDateString("vi-VN", {
-                                    day: "2-digit", month: "2-digit", year: "numeric",
-                                    hour: "2-digit", minute: "2-digit",
-                                  })
-                                : ""}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground line-clamp-2">
+                              {stream.title || t("channel.noTitle")}
                             </p>
-                            {(stream.viewerCount ?? 0) > 0 && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Users className="w-3 h-3" />
-                                {stream.viewerCount} {t("channel.views")}
+                            <div className="flex items-center gap-3 mt-0.5">
+                              <p className="text-xs text-muted-foreground">
+                                {stream.startedAt
+                                  ? new Date(stream.startedAt).toLocaleDateString("vi-VN", {
+                                      day: "2-digit", month: "2-digit", year: "numeric",
+                                      hour: "2-digit", minute: "2-digit",
+                                    })
+                                  : ""}
                               </p>
-                            )}
+                              {(stream.viewerCount ?? 0) > 0 && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  {stream.viewerCount} {t("channel.views")}
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          {isMyChannel && (
+                            <button
+                              onClick={() => {
+                                if (confirm(t("channel.confirmDeleteLivestream"))) {
+                                  deleteLivestreamMutation.mutate({ id: stream.id });
+                                }
+                              }}
+                              disabled={deleteLivestreamMutation.isPending}
+                              className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                              title={t("channel.deleteLivestream")}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );

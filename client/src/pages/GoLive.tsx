@@ -12,9 +12,12 @@ import { useTranslation } from "react-i18next";
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
 ];
 
-function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 8000): Promise<void> {
+function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 4000): Promise<void> {
   return new Promise(resolve => {
     if (pc.iceGatheringState === "complete") { resolve(); return; }
     const timer = setTimeout(resolve, timeoutMs);
@@ -52,7 +55,7 @@ export default function GoLive() {
 
   const { data: signals } = trpc.livestreams.getStreamerSignals.useQuery(
     { livestreamId: livestreamId ?? 0, afterId: lastSignalId },
-    { enabled: isLive && !!livestreamId, refetchInterval: 2000, staleTime: 0 }
+    { enabled: isLive && !!livestreamId, refetchInterval: 500, staleTime: 0 }
   );
 
   const { data: newChats } = trpc.livestreams.getChats.useQuery(

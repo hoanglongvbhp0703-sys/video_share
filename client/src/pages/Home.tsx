@@ -3,29 +3,15 @@ import Layout from "@/components/Layout";
 import VideoCard from "@/components/VideoCard";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Video } from "@shared/types";
 import { useTranslation } from "react-i18next";
 
-interface VideoWithChannel extends Video {
-  channelName?: string;
-}
-
 export default function Home() {
-  const [videos, setVideos] = useState<VideoWithChannel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const { t } = useTranslation();
 
-  const { data: videoList, isLoading: isFetching } = trpc.videos.list.useQuery({
+  const { data: videos, isLoading } = trpc.videos.list.useQuery({
     limit: 20,
     offset: 0,
   });
-
-  useEffect(() => {
-    if (videoList) {
-      setVideos(videoList as VideoWithChannel[]);
-      setIsLoading(false);
-    }
-  }, [videoList]);
 
   return (
     <Layout>
@@ -38,7 +24,7 @@ export default function Home() {
           </div>
 
           {/* Video Grid */}
-          {isLoading || isFetching ? (
+          {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div key={i} className="flex flex-col gap-2">
@@ -54,7 +40,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          ) : videos.length > 0 ? (
+          ) : videos && videos.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {videos.map((video) => (
                 <VideoCard key={video.id} video={video} />

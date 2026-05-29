@@ -2,12 +2,19 @@ import { useParams, Link } from "wouter";
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import VideoPlayer from "@/components/VideoPlayer";
+import SaveToPlaylistDialog from "@/components/SaveToPlaylistDialog";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { ThumbsUp, ThumbsDown, Share2, MoreVertical, Bell } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ThumbsUp, ThumbsDown, Share2, MoreVertical, Bell, ListVideo } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -27,6 +34,7 @@ export default function Watch() {
 
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const { data: video, isLoading: videoLoading } = trpc.videos.getById.useQuery(
     { id: videoId },
@@ -237,9 +245,25 @@ export default function Watch() {
                 <span className="text-sm">{t("watch.share")}</span>
               </button>
 
-              <button className="ml-auto p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <MoreVertical className="w-5 h-5" />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="ml-auto p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setSaveDialogOpen(true)}>
+                    <ListVideo className="w-4 h-4 mr-2" />
+                    {t("channel.saveToPlaylist")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <SaveToPlaylistDialog
+                videoId={videoId}
+                open={saveDialogOpen}
+                onClose={() => setSaveDialogOpen(false)}
+              />
             </div>
 
             <div className="bg-gray-100 rounded-lg p-4 mb-6">
