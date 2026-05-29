@@ -4,12 +4,13 @@ import Layout from "@/components/Layout";
 import { trpc } from "@/lib/trpc";
 import VideoCard from "@/components/VideoCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "react-i18next";
 
 export default function Search() {
   const search = useSearch();
   const [searchQuery, setSearchQuery] = useState("");
+  const { t } = useTranslation();
 
-  // Extract query from URL search string
   useEffect(() => {
     const params = new URLSearchParams(search);
     const q = params.get("q") || "";
@@ -27,11 +28,11 @@ export default function Search() {
         {searchQuery && (
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">
-              Kết quả tìm kiếm cho "{searchQuery}"
+              {t("search.resultsFor")} "{searchQuery}"
             </h1>
             {results && (
               <p className="text-gray-600 text-sm mt-1">
-                Tìm thấy {results.length} video
+                {t("search.found", { count: results.length })}
               </p>
             )}
           </div>
@@ -61,12 +62,12 @@ export default function Search() {
           </div>
         ) : searchQuery ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <p className="text-gray-600 text-lg">Không tìm thấy video nào</p>
-            <p className="text-gray-500 text-sm mt-2">Hãy thử tìm kiếm với từ khóa khác</p>
+            <p className="text-gray-600 text-lg">{t("search.notFound")}</p>
+            <p className="text-gray-500 text-sm mt-2">{t("search.tryOther")}</p>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12">
-            <p className="text-gray-600 text-lg">Nhập từ khóa để tìm kiếm video</p>
+            <p className="text-gray-600 text-lg">{t("search.enterKeyword")}</p>
           </div>
         )}
       </div>

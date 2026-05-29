@@ -8,11 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { User, Tv, CalendarDays, Users, Video, Settings } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { format } from "date-fns";
-import { vi } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/useDateLocale";
 
 export default function Profile() {
   const [, navigate] = useLocation();
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
+  const dateLocale = useDateLocale();
 
   const { data: profile, isLoading } = trpc.users.getMyProfile.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -23,13 +26,13 @@ export default function Profile() {
       <Layout>
         <div className="p-6 max-w-2xl mx-auto text-center py-16">
           <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Bạn chưa đăng nhập</h2>
-          <p className="text-gray-500 mb-6">Đăng nhập để xem hồ sơ của bạn.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("profile.notLoggedIn")}</h2>
+          <p className="text-gray-500 mb-6">{t("profile.notLoggedInDesc")}</p>
           <a
             href={getLoginUrl()}
             className="inline-flex items-center px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors"
           >
-            Đăng nhập
+            {t("profile.login")}
           </a>
         </div>
       </Layout>
@@ -58,7 +61,7 @@ export default function Profile() {
 
   const { channel } = profile;
   const joinDate = profile.createdAt
-    ? format(new Date(profile.createdAt), "MMMM yyyy", { locale: vi })
+    ? format(new Date(profile.createdAt), "MMMM yyyy", { locale: dateLocale })
     : null;
 
   return (
@@ -77,11 +80,11 @@ export default function Profile() {
               </Avatar>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/settings")}>
                 <Settings className="w-4 h-4" />
-                Chỉnh sửa hồ sơ
+                {t("profile.editProfile")}
               </Button>
             </div>
 
-            <h1 className="text-2xl font-bold text-gray-900">{profile.name || "Người dùng"}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{profile.name || t("profile.user")}</h1>
             {profile.email && (
               <p className="text-sm text-gray-500 mt-0.5">{profile.email}</p>
             )}
@@ -91,7 +94,7 @@ export default function Profile() {
             {joinDate && (
               <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-400">
                 <CalendarDays className="w-3.5 h-3.5" />
-                <span>Thành viên từ {joinDate}</span>
+                <span>{t("profile.memberSince")} {joinDate}</span>
               </div>
             )}
           </div>
@@ -101,7 +104,7 @@ export default function Profile() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <Tv className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-gray-900">Kênh của tôi</h2>
+            <h2 className="text-base font-semibold text-gray-900">{t("profile.myChannel")}</h2>
           </div>
 
           <div className="flex items-center gap-4">
@@ -117,16 +120,16 @@ export default function Profile() {
               <div className="flex items-center gap-4 mt-1">
                 <span className="flex items-center gap-1 text-sm text-gray-500">
                   <Users className="w-3.5 h-3.5" />
-                  {channel.subscriberCount.toLocaleString()} người đăng ký
+                  {channel.subscriberCount.toLocaleString()} {t("profile.subscribers")}
                 </span>
                 <span className="flex items-center gap-1 text-sm text-gray-500">
                   <Video className="w-3.5 h-3.5" />
-                  {channel.videoCount} video
+                  {channel.videoCount} {t("profile.videos")}
                 </span>
               </div>
             </div>
 
-            <Button size="sm" variant="outline" onClick={() => navigate("/channel")}>Xem kênh</Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("/channel")}>{t("profile.viewChannel")}</Button>
           </div>
 
           {channel.description && (

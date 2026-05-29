@@ -2,8 +2,10 @@ import Layout from "@/components/Layout";
 import VideoCard from "@/components/VideoCard";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTranslation } from "react-i18next";
 
 export default function Trending() {
+  const { t } = useTranslation();
   const { data: videos, isLoading } = trpc.videos.getTrending.useQuery({
     limit: 20,
     offset: 0,
@@ -13,8 +15,8 @@ export default function Trending() {
     <Layout>
       <div className="p-4 md:p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Xu hướng</h1>
-          <p className="text-gray-600 text-sm mt-1">Những video được xem nhiều nhất hôm nay</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("trending.title")}</h1>
+          <p className="text-gray-600 text-sm mt-1">{t("trending.subtitle")}</p>
         </div>
 
         {isLoading ? (
@@ -41,7 +43,7 @@ export default function Trending() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12">
-            <p className="text-gray-600 text-lg">Chưa có video nào</p>
+            <p className="text-gray-600 text-lg">{t("trending.noVideos")}</p>
           </div>
         )}
       </div>

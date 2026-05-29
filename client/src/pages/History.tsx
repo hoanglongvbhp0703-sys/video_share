@@ -6,7 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { History as HistoryIcon, User } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/useDateLocale";
 
 function formatDuration(seconds: number | null | undefined) {
   if (!seconds) return "";
@@ -17,6 +18,8 @@ function formatDuration(seconds: number | null | undefined) {
 
 export default function History() {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
+  const dateLocale = useDateLocale();
 
   const { data: history, isLoading } = trpc.watchHistory.getHistory.useQuery(
     { limit: 50, offset: 0 },
@@ -28,13 +31,13 @@ export default function History() {
       <Layout>
         <div className="p-6 max-w-2xl mx-auto text-center py-16">
           <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Bạn chưa đăng nhập</h2>
-          <p className="text-gray-500 mb-6">Đăng nhập để xem lịch sử xem của bạn.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("history.notLoggedIn")}</h2>
+          <p className="text-gray-500 mb-6">{t("history.notLoggedInDesc")}</p>
           <a
             href={getLoginUrl()}
             className="inline-flex items-center px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors"
           >
-            Đăng nhập
+            {t("history.login")}
           </a>
         </div>
       </Layout>
@@ -46,7 +49,7 @@ export default function History() {
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
         <div className="flex items-center gap-2 mb-6">
           <HistoryIcon className="w-6 h-6 text-gray-700" />
-          <h1 className="text-2xl font-bold text-gray-900">Lịch sử xem</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("history.title")}</h1>
         </div>
 
         {isLoading ? (
@@ -93,10 +96,10 @@ export default function History() {
                     {item.videoTitle}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    {item.videoViewCount?.toLocaleString()} lượt xem
+                    {item.videoViewCount?.toLocaleString()} {t("history.views")}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Đã xem {formatDistanceToNow(new Date(item.watchedAt), { locale: vi, addSuffix: true })}
+                    {t("history.watchedAt")} {formatDistanceToNow(new Date(item.watchedAt), { locale: dateLocale, addSuffix: true })}
                   </p>
                 </div>
               </Link>
@@ -105,9 +108,9 @@ export default function History() {
         ) : (
           <div className="text-center py-16">
             <HistoryIcon className="w-14 h-14 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-600 font-medium">Chưa có lịch sử xem</p>
+            <p className="text-gray-600 font-medium">{t("history.noHistory")}</p>
             <Link href="/" className="inline-block mt-3 text-sm text-primary hover:underline">
-              Khám phá video ngay →
+              {t("history.explore")}
             </Link>
           </div>
         )}

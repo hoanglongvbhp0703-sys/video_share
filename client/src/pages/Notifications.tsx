@@ -6,8 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Bell, BellOff, CheckCheck, Video, Users, MessageSquare, Info, User } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
+import { useDateLocale } from "@/lib/useDateLocale";
 
 const typeIcon: Record<string, React.ReactNode> = {
   new_video: <Video className="w-4 h-4 text-primary" />,
@@ -20,6 +21,8 @@ const typeIcon: Record<string, React.ReactNode> = {
 export default function Notifications() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
+  const { t } = useTranslation();
+  const dateLocale = useDateLocale();
 
   const { data: notifications, isLoading } = trpc.notifications.list.useQuery(
     { limit: 50, offset: 0 },
@@ -45,13 +48,13 @@ export default function Notifications() {
       <Layout>
         <div className="p-6 max-w-2xl mx-auto text-center py-16">
           <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Bạn chưa đăng nhập</h2>
-          <p className="text-gray-500 mb-6">Đăng nhập để xem thông báo.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("notifications.notLoggedIn")}</h2>
+          <p className="text-gray-500 mb-6">{t("notifications.notLoggedInDesc")}</p>
           <a
             href={getLoginUrl()}
             className="inline-flex items-center px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors"
           >
-            Đăng nhập
+            {t("notifications.login")}
           </a>
         </div>
       </Layout>
@@ -66,7 +69,7 @@ export default function Notifications() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-gray-700" />
-            <h1 className="text-xl font-bold text-gray-900">Thông báo</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t("notifications.title")}</h1>
             {unreadCount > 0 && (
               <span className="bg-primary text-white text-xs font-bold px-2 py-0.5 rounded-full">
                 {unreadCount}
@@ -82,7 +85,7 @@ export default function Notifications() {
               className="gap-2 text-sm"
             >
               <CheckCheck className="w-4 h-4" />
-              Đánh dấu tất cả đã đọc
+              {t("notifications.markAllRead")}
             </Button>
           )}
         </div>
@@ -102,7 +105,7 @@ export default function Notifications() {
         ) : !notifications || notifications.length === 0 ? (
           <div className="text-center py-16">
             <BellOff className="w-14 h-14 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">Chưa có thông báo nào.</p>
+            <p className="text-gray-500 text-sm">{t("notifications.noNotifications")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -125,7 +128,7 @@ export default function Notifications() {
                     {n.message}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: vi })}
+                    {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: dateLocale })}
                   </p>
                 </div>
                 {!n.isRead && (
