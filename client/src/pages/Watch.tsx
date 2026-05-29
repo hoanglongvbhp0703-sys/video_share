@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThumbsUp, ThumbsDown, Share2, MoreVertical, Bell, ListVideo } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, MoreVertical, Bell, ListVideo, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -275,7 +275,10 @@ export default function Watch() {
             </div>
 
             <div className="mb-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">{video.commentCount} {t("watch.comments")}</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                {video.commentCount} {t("watch.comments")}
+              </h2>
 
               {isAuthenticated ? (
                 <form onSubmit={handleAddComment} className="mb-6">
