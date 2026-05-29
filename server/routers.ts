@@ -57,6 +57,7 @@ import {
   updateReportStatus,
   adminDeleteVideo,
   adminDeleteComment,
+  deleteVideoByChannelOwner,
   updateChannelImages,
   startLivestream,
   endLivestream,
@@ -251,6 +252,18 @@ export const appRouter = router({
     suggest: publicProcedure
       .input(z.object({ query: z.string(), limit: z.number().default(8) }))
       .query(({ input }) => suggestVideos(input.query, input.limit)),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await deleteVideoByChannelOwner(input.id, ctx.user.id);
+        if (!result.success) {
+          throw new TRPCError({
+            code: result.reason === "NOT_FOUND" ? "NOT_FOUND" : "FORBIDDEN",
+          });
+        }
+        return { success: true };
+      }),
 
     getTrending: publicProcedure
       .input(z.object({ limit: z.number().default(20), offset: z.number().default(0) }))

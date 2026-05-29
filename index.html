@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VideoShare — Nền tảng chia sẻ video</title>
+  <meta name="description" content="VideoShare là nền tảng chia sẻ video hiện đại với livestream, AI chatbot và hỗ trợ đa ngôn ngữ." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #242424;
+      --border: #2e2e2e;
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(15,15,15,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display: flex; align-items: center; gap: .6rem; font-size: 1.15rem; font-weight: 700; }
+    .nav-logo svg { color: var(--primary); }
+    .nav-links { display: flex; gap: .5rem; }
+    .nav-links a {
+      padding: .4rem .9rem; border-radius: 8px; font-size: .875rem;
+      color: var(--muted); text-decoration: none; transition: all .2s;
+    }
+    .nav-links a:hover { color: var(--text); background: var(--surface2); }
+    .btn-primary {
+      padding: .45rem 1.1rem; border-radius: 8px; font-size: .875rem; font-weight: 600;
+      background: var(--primary); color: #fff; text-decoration: none;
+      transition: opacity .2s;
+    }
+    .btn-primary:hover { opacity: .85; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative; overflow: hidden;
+      padding: 7rem 2rem 5rem;
+      text-align: center;
+    }
+    .hero::before {
+      content: ""; position: absolute; inset: 0; z-index: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,.25) 0%, transparent 70%);
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .badge {
+      display: inline-block; margin-bottom: 1.5rem;
+      padding: .35rem 1rem; border-radius: 999px;
+      background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.4);
+      font-size: .8rem; color: var(--primary-light); font-weight: 600; letter-spacing: .03em;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.8rem); font-weight: 800; letter-spacing: -.02em;
+      line-height: 1.15; margin-bottom: 1.25rem;
+    }
+    .hero h1 span { color: var(--primary-light); }
+    .hero p { max-width: 580px; margin: 0 auto 2.5rem; color: var(--muted); font-size: 1.1rem; }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-outline {
+      padding: .6rem 1.4rem; border-radius: 8px; font-size: .925rem; font-weight: 600;
+      background: transparent; border: 1px solid var(--border); color: var(--text);
+      text-decoration: none; transition: background .2s;
+    }
+    .btn-outline:hover { background: var(--surface2); }
+    .btn-hero {
+      padding: .65rem 1.6rem; border-radius: 8px; font-size: .925rem; font-weight: 600;
+      background: var(--primary); color: #fff; text-decoration: none; transition: opacity .2s;
+    }
+    .btn-hero:hover { opacity: .85; }
+
+    /* ── Stats ── */
+    .stats {
+      display: flex; justify-content: center; flex-wrap: wrap; gap: 2rem;
+      padding: 2.5rem 2rem;
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .stat { text-align: center; }
+    .stat strong { display: block; font-size: 1.7rem; font-weight: 800; color: var(--primary-light); }
+    .stat span { font-size: .85rem; color: var(--muted); }
+
+    /* ── Features ── */
+    .section { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
+    .section-label { text-align: center; margin-bottom: .75rem; }
+    .section-label span {
+      font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--primary-light);
+    }
+    .section h2 {
+      text-align: center; font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 800; margin-bottom: 3rem;
+    }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1.25rem;
+    }
+    .feature-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.6rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .feature-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: rgba(99,102,241,.15); display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; margin-bottom: 1rem;
+    }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .5rem; }
+    .feature-card p { font-size: .875rem; color: var(--muted); }
+
+    /* ── Tech Stack ── */
+    .stack-section { padding: 4rem 2rem; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .stack-inner { max-width: 900px; margin: 0 auto; }
+    .stack-section h2 { text-align: center; font-size: 1.5rem; font-weight: 800; margin-bottom: 2rem; }
+    .stack-grid { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; }
+    .stack-pill {
+      padding: .45rem 1rem; border-radius: 999px; font-size: .8rem; font-weight: 600;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    }
+    .stack-pill.hl { background: rgba(99,102,241,.15); border-color: rgba(99,102,241,.4); color: var(--primary-light); }
+
+    /* ── Screenshots placeholder ── */
+    .screens-section { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
+    .screens-section h2 { text-align: center; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; margin-bottom: 3rem; }
+    .screen-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 1rem; }
+    .screen-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      aspect-ratio: 16/9; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: .5rem;
+      font-size: .875rem; color: var(--muted);
+    }
+    .screen-card span { font-size: 1.75rem; }
+
+    /* ── CTA ── */
+    .cta {
+      text-align: center; padding: 6rem 2rem;
+      background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(99,102,241,.2) 0%, transparent 70%);
+    }
+    .cta h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; margin-bottom: 1rem; }
+    .cta p { color: var(--muted); margin-bottom: 2rem; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border); padding: 2rem;
+      text-align: center; color: var(--muted); font-size: .85rem;
+    }
+    footer a { color: var(--primary-light); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      nav { padding: .75rem 1rem; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <div class="nav-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7L8 5z"/>
+      </svg>
+      VideoShare
+    </div>
+    <div class="nav-links">
+      <a href="#features">Tính năng</a>
+      <a href="#stack">Stack</a>
+      <a href="https://github.com/hoanglongvbhp0703" target="_blank">GitHub</a>
+    </div>
+    <a href="https://github.com/hoanglongvbhp0703" class="btn-primary" target="_blank">Xem repo →</a>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="badge">🎬 Full-stack Video Platform</div>
+    <h1>Nền tảng chia sẻ video<br/><span>thế hệ mới</span></h1>
+    <p>YouTube-like platform với livestream WebRTC, AI chatbot, đa ngôn ngữ (VI/EN/JA) và quản lý kênh đầy đủ.</p>
+    <div class="hero-actions">
+      <a href="https://github.com/hoanglongvbhp0703" class="btn-hero" target="_blank">⭐ Star on GitHub</a>
+      <a href="#features" class="btn-outline">Khám phá tính năng</a>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat"><strong>17+</strong><span>Bảng DB</span></div>
+    <div class="stat"><strong>45</strong><span>API tests</span></div>
+    <div class="stat"><strong>3</strong><span>Ngôn ngữ</span></div>
+    <div class="stat"><strong>WebRTC</strong><span>P2P Livestream</span></div>
+    <div class="stat"><strong>AI</strong><span>Chatbot Groq</span></div>
+  </div>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="section-label"><span>Tính năng</span></div>
+    <h2>Mọi thứ bạn cần trong một platform</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🎥</div>
+        <h3>Upload & Xem video</h3>
+        <p>Upload video lên tới 500MB, thumbnail tự động từ frame đầu, trình phát tích hợp với autoplay.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Livestream WebRTC</h3>
+        <p>Phát trực tiếp P2P từ trình duyệt, chat real-time, 5 STUN servers, ICE timeout tối ưu ~4s.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>AI Chatbot (Groq)</h3>
+        <p>Bot gợi ý video theo sở thích, chạy trên Groq llama-3.3-70b (free tier), fallback keyword khi offline.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌐</div>
+        <h3>Đa ngôn ngữ</h3>
+        <p>Hỗ trợ Tiếng Việt, English, 日本語 với react-i18next. Ngôn ngữ persist qua localStorage.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>Tìm kiếm thông minh</h3>
+        <p>Fuzzy search, autocomplete dropdown, hỗ trợ tìm không dấu tiếng Việt — "honganh" → "Hồng Anh".</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✂️</div>
+        <h3>Crop ảnh đại diện</h3>
+        <p>Zoom + chọn vùng crop trước khi đặt avatar hay banner kênh. Hình tròn cho avatar, 16:4 cho banner.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗑️</div>
+        <h3>Quản lý video kênh</h3>
+        <p>Chủ kênh có thể xóa video trực tiếp trên trang kênh của mình với nút hover-to-reveal.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌙</div>
+        <h3>Dark mode</h3>
+        <p>Chế độ tối toàn trang với semantic tokens Tailwind, lưu trạng thái vào localStorage.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔐</div>
+        <h3>Auth & Admin</h3>
+        <p>Email + password (bcrypt), JWT per-tab session isolation, role system, Admin Panel quản lý users & reports.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <div class="stack-section" id="stack">
+    <div class="stack-inner">
+      <h2>Tech Stack</h2>
+      <div class="stack-grid">
+        <span class="stack-pill hl">React 19</span>
+        <span class="stack-pill hl">TypeScript</span>
+        <span class="stack-pill hl">tRPC v11</span>
+        <span class="stack-pill hl">Drizzle ORM</span>
+        <span class="stack-pill hl">Supabase PostgreSQL</span>
+        <span class="stack-pill">Vite 7</span>
+        <span class="stack-pill">Express</span>
+        <span class="stack-pill">Tailwind CSS 4</span>
+        <span class="stack-pill">TanStack Query</span>
+        <span class="stack-pill">Radix UI</span>
+        <span class="stack-pill">wouter</span>
+        <span class="stack-pill">react-easy-crop</span>
+        <span class="stack-pill">react-i18next</span>
+        <span class="stack-pill">Groq AI</span>
+        <span class="stack-pill">WebRTC</span>
+        <span class="stack-pill">bcryptjs</span>
+        <span class="stack-pill">jose (JWT)</span>
+        <span class="stack-pill">Playwright</span>
+        <span class="stack-pill">Docker</span>
+        <span class="stack-pill">AWS S3</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page previews -->
+  <section class="screens-section">
+    <h2>Các trang chính</h2>
+    <div class="screen-cards">
+      <div class="screen-card"><span>🏠</span>Trang chủ</div>
+      <div class="screen-card"><span>▶️</span>Watch page</div>
+      <div class="screen-card"><span>📺</span>Channel page</div>
+      <div class="screen-card"><span>📤</span>Upload video</div>
+      <div class="screen-card"><span>🔴</span>Go Live</div>
+      <div class="screen-card"><span>🔎</span>Tìm kiếm</div>
+      <div class="screen-card"><span>🔥</span>Trending</div>
+      <div class="screen-card"><span>🛡️</span>Admin Panel</div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <h2>Bắt đầu ngay hôm nay</h2>
+    <p>Clone repo, cấu hình .env với Supabase URL, chạy <code style="background:var(--surface2);padding:.2rem .5rem;border-radius:6px;font-size:.9em">npm run dev</code> là xong.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <a href="https://github.com/hoanglongvbhp0703" class="btn-hero" target="_blank">GitHub →</a>
+      <a href="https://github.com/hoanglongvbhp0703" class="btn-outline" target="_blank">Xem README</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>Built by <a href="https://github.com/hoanglongvbhp0703" target="_blank">hoanglongvbhp0703</a> · VideoShare © 2026</p>
+  </footer>
+
+</body>
+</html>

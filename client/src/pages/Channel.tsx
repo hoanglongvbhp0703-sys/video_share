@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import VideoCard from "@/components/VideoCard";
+import ImageCropDialog from "@/components/ImageCropDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { Camera, ImagePlus, Radio, Video, Tv, Users, Clock, Trash2 } from "lucide-react";
@@ -15,6 +16,11 @@ interface ChannelParams {
   id?: string;
 }
 
+interface CropState {
+  imageUrl: string;
+  type: "avatar" | "banner";
+}
+
 export default function Channel() {
   const { id } = useParams<ChannelParams>();
   const [, navigate] = useLocation();
@@ -22,6 +28,7 @@ export default function Channel() {
   const { t } = useTranslation();
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [localBannerUrl, setLocalBannerUrl] = useState<string | null>(null);
+  const [cropState, setCropState] = useState<CropState | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +76,14 @@ export default function Channel() {
     },
     onError: () => toast.error(t("channel.deleteFailed")),
   });
+  const deleteVideoMutation = trpc.videos.delete.useMutation({
+    onSuccess: () => {
+      utils.channels.getVideos.invalidate({ channelId: activeChannelId });
+      utils.videos.list.invalidate();
+      toast.success(t("channel.videoDeleted"));
+    },
+    onError: () => toast.error(t("channel.deleteFailed")),
+  });
 
   const { data: activeLivestream } = trpc.livestreams.getActiveByChannel.useQuery(
     { channelId: activeChannelId || 0 },
@@ -87,25 +102,44 @@ export default function Channel() {
     onError: () => toast.error(t("channel.uploadFailed")),
   });
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, type: "avatar" | "banner") => {
+  const handleImageFileSelected = (e: React.ChangeEvent<HTMLInputElement>, type: "avatar" | "banner") => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast.error(t("channel.imageError"));
+      e.target.value = "";
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error(t("channel.imageTooLarge"));
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error(t("channel.imageTooLargeForCrop"));
+      e.target.value = "";
       return;
     }
-    const buffer = await file.arrayBuffer();
+    const objectUrl = URL.createObjectURL(file);
+    setCropState({ imageUrl: objectUrl, type });
+    e.target.value = "";
+  };
+
+  const handleCropConfirm = async (blob: Blob) => {
+    if (!cropState) return;
+    const type = cropState.type;
+    URL.revokeObjectURL(cropState.imageUrl);
+    setCropState(null);
+
+    const buffer = await blob.arrayBuffer();
+    const ext = "jpg";
+    const fileName = `${type}-${Date.now()}.${ext}`;
     updateImagesMutation.mutate({
       type,
       fileData: new Uint8Array(buffer),
-      fileName: file.name,
-      mimeType: file.type,
+      fileName,
+      mimeType: "image/jpeg",
     });
-    e.target.value = "";
+  };
+
+  const handleCropCancel = () => {
+    if (cropState) URL.revokeObjectURL(cropState.imageUrl);
+    setCropState(null);
   };
 
   const handleToggleSubscribe = () => {
@@ -146,9 +180,19 @@ export default function Channel() {
     <Layout>
       <div className="w-full">
         <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => handleImageChange(e, "avatar")} />
+          onChange={(e) => handleImageFileSelected(e, "avatar")} />
         <input ref={bannerInputRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => handleImageChange(e, "banner")} />
+          onChange={(e) => handleImageFileSelected(e, "banner")} />
+
+        {cropState && (
+          <ImageCropDialog
+            open={true}
+            imageUrl={cropState.imageUrl}
+            type={cropState.type}
+            onConfirm={handleCropConfirm}
+            onCancel={handleCropCancel}
+          />
+        )}
 
         {/* Channel Banner */}
         <div className="relative w-full h-48 bg-gradient-to-r from-primary/20 to-primary/10 overflow-hidden group">
@@ -292,9 +336,27 @@ export default function Channel() {
                 </div>
               ) : videos && videos.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {videos.map((video) => (
-                    <VideoCard key={video.id} video={{ ...video, channelName: displayChannel.name }} />
-                  ))}
+                  {videos.map((video) =>
+                    isMyChannel ? (
+                      <div key={video.id} className="relative group/card">
+                        <VideoCard video={{ ...video, channelName: displayChannel.name }} />
+                        <button
+                          onClick={() => {
+                            if (confirm(t("channel.confirmDeleteVideo"))) {
+                              deleteVideoMutation.mutate({ id: video.id });
+                            }
+                          }}
+                          disabled={deleteVideoMutation.isPending}
+                          className="absolute top-2 left-2 z-10 p-1.5 bg-black/70 text-white rounded opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-red-600"
+                          title={t("channel.deleteVideo")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <VideoCard key={video.id} video={{ ...video, channelName: displayChannel.name }} />
+                    )
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">

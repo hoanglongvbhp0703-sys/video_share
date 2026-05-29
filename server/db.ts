@@ -1048,6 +1048,20 @@ export async function adminDeleteVideo(videoId: number) {
   return { success: true };
 }
 
+export async function deleteVideoByChannelOwner(videoId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const video = await db.select().from(videos).where(eq(videos.id, videoId)).limit(1);
+  if (!video[0]) return { success: false, reason: "NOT_FOUND" as const };
+
+  const channel = await db.select().from(channels).where(eq(channels.id, video[0].channelId)).limit(1);
+  if (!channel[0] || channel[0].userId !== userId) return { success: false, reason: "FORBIDDEN" as const };
+
+  await db.delete(videos).where(eq(videos.id, videoId));
+  return { success: true, reason: null };
+}
+
 export async function adminDeleteComment(commentId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
