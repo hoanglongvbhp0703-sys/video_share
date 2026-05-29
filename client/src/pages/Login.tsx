@@ -6,6 +6,7 @@ import { SESSION_TOKEN_KEY } from "@shared/const";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
+import { Play } from "lucide-react";
 
 const hasOAuth = !!(
   import.meta.env.VITE_OAUTH_PORTAL_URL && import.meta.env.VITE_APP_ID
@@ -69,89 +70,119 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] overflow-hidden relative">
+      {/* Background blobs */}
+      <div className="absolute top-[-10%] left-[-5%] w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-5%] w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-3xl" />
+
+      <div className="relative z-10 w-full max-w-sm mx-4">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-3">
-            <span className="text-white text-2xl font-bold">VS</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">VideoShare</h1>
-          <p className="text-gray-500 text-sm mt-1">{t("auth.loginSubtitle")}</p>
+          <Link href="/">
+            <div className="inline-flex items-center gap-2 cursor-pointer group mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-400 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                <Play className="w-5 h-5 text-white fill-white" />
+              </div>
+              <span className="text-2xl font-extrabold bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent">
+                VideoShare
+              </span>
+            </div>
+          </Link>
+          <p className="text-white/60 text-sm">{t("auth.loginSubtitle")}</p>
         </div>
 
-        <form onSubmit={handleLoginSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("auth.email")}
-            </label>
-            <Input
-              type="email"
-              placeholder={t("auth.emailPlaceholder")}
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(""); }}
-              disabled={loading}
-              autoFocus
-              required
-            />
-          </div>
+        {/* Card */}
+        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 shadow-2xl">
+          <h2 className="text-xl font-bold text-white mb-6 text-center">{t("auth.loginSubmit")}</h2>
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">
-                {t("auth.password")}
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-1.5">
+                {t("auth.email")}
               </label>
-              <Link href="/forgot-password">
-                <span className="text-xs text-primary hover:underline cursor-pointer">
-                  {t("auth.forgotPasswordLink")}
+              <Input
+                type="email"
+                placeholder={t("auth.emailPlaceholder")}
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                disabled={loading}
+                autoFocus
+                required
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-blue-400 focus:ring-blue-400/20"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-white/80">
+                  {t("auth.password")}
+                </label>
+                <Link href="/forgot-password">
+                  <span className="text-xs text-blue-300 hover:text-blue-200 cursor-pointer transition-colors">
+                    {t("auth.forgotPasswordLink")}
+                  </span>
+                </Link>
+              </div>
+              <Input
+                type="password"
+                placeholder={t("auth.passwordPlaceholder")}
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                disabled={loading}
+                required
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-blue-400 focus:ring-blue-400/20"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-500/20 border border-red-400/30 rounded-lg px-3 py-2">
+                <p className="text-sm text-red-300">{error}</p>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-primary to-blue-500 hover:from-primary/90 hover:to-blue-500/90 text-white font-semibold shadow-lg shadow-primary/25 border-0 mt-2"
+              size="lg"
+              disabled={loading || !email.trim() || !password}
+            >
+              {loading ? t("auth.loginLoading") : t("auth.loginSubmit")}
+            </Button>
+
+            <p className="text-center text-sm text-white/50 pt-1">
+              {t("auth.noAccount")}{" "}
+              <Link href="/register">
+                <span className="text-blue-300 font-medium hover:text-blue-200 cursor-pointer transition-colors">
+                  {t("auth.registerNow")}
                 </span>
               </Link>
-            </div>
-            <Input
-              type="password"
-              placeholder={t("auth.passwordPlaceholder")}
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(""); }}
-              disabled={loading}
-              required
-            />
-          </div>
+            </p>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <Button type="submit" className="w-full" size="lg" disabled={loading || !email.trim() || !password}>
-            {loading ? t("auth.loginLoading") : t("auth.loginSubmit")}
-          </Button>
-
-          <p className="text-center text-sm text-gray-500">
-            {t("auth.noAccount")}{" "}
-            <Link href="/register">
-              <span className="text-primary font-medium hover:underline cursor-pointer">
-                {t("auth.registerNow")}
-              </span>
-            </Link>
-          </p>
-
-          {hasOAuth && (
-            <>
-              <div className="relative my-2">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200" />
+            {hasOAuth && (
+              <>
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-white/10" />
+                  </div>
+                  <div className="relative flex justify-center text-xs text-white/30 px-2">
+                    <span className="bg-transparent px-2">{t("auth.or")}</span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center text-xs text-gray-400 bg-white px-2">{t("auth.or")}</div>
-              </div>
-              <a href={getLoginUrl()} className="block">
-                <Button variant="outline" className="w-full" size="lg">
-                  {t("auth.loginWithManus")}
-                </Button>
-              </a>
-              <a href={getRegisterUrl()} className="block">
-                <Button variant="ghost" className="w-full" size="sm">
-                  {t("auth.registerWithManus")}
-                </Button>
-              </a>
-            </>
-          )}
-        </form>
+                <a href={getLoginUrl()} className="block">
+                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10" size="lg">
+                    {t("auth.loginWithManus")}
+                  </Button>
+                </a>
+                <a href={getRegisterUrl()} className="block">
+                  <Button variant="ghost" className="w-full text-white/60 hover:text-white hover:bg-white/10" size="sm">
+                    {t("auth.registerWithManus")}
+                  </Button>
+                </a>
+              </>
+            )}
+          </form>
+        </div>
       </div>
     </div>
   );
