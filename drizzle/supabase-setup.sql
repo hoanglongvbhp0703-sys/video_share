@@ -170,3 +170,44 @@ ALTER TABLE subscriptions ADD CONSTRAINT fk_subscriptions_channel FOREIGN KEY ("
 ALTER TABLE subscriptions ADD CONSTRAINT fk_subscriptions_user FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE "watchHistory" ADD CONSTRAINT fk_watchHistory_video FOREIGN KEY ("videoId") REFERENCES videos(id) ON DELETE CASCADE;
 ALTER TABLE "watchHistory" ADD CONSTRAINT fk_watchHistory_user FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
+
+-- Table: livestreams
+CREATE TABLE livestreams (
+  id SERIAL PRIMARY KEY,
+  "channelId" INTEGER NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'live' CHECK (status IN ('live', 'ended')),
+  "viewerCount" INTEGER NOT NULL DEFAULT 0,
+  "thumbnailUrl" TEXT,
+  "startedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "endedAt" TIMESTAMP
+);
+CREATE INDEX livestreams_channelId_idx ON livestreams ("channelId");
+CREATE INDEX livestreams_status_idx ON livestreams (status);
+ALTER TABLE livestreams ADD CONSTRAINT fk_livestreams_channel FOREIGN KEY ("channelId") REFERENCES channels(id) ON DELETE CASCADE;
+
+-- Table: livestreamSignals (WebRTC offer/answer)
+CREATE TABLE "livestreamSignals" (
+  id SERIAL PRIMARY KEY,
+  "livestreamId" INTEGER NOT NULL,
+  "viewerId" INTEGER NOT NULL,
+  "fromRole" VARCHAR(10) NOT NULL CHECK ("fromRole" IN ('streamer', 'viewer')),
+  type VARCHAR(10) NOT NULL CHECK (type IN ('offer', 'answer')),
+  payload TEXT NOT NULL,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX "lsSignals_livestreamId_viewer_idx" ON "livestreamSignals" ("livestreamId", "viewerId");
+ALTER TABLE "livestreamSignals" ADD CONSTRAINT "fk_lsSignals_livestream" FOREIGN KEY ("livestreamId") REFERENCES livestreams(id) ON DELETE CASCADE;
+
+-- Table: liveChats
+CREATE TABLE "liveChats" (
+  id SERIAL PRIMARY KEY,
+  "livestreamId" INTEGER NOT NULL,
+  "userId" INTEGER NOT NULL,
+  "userName" VARCHAR(255) NOT NULL,
+  message VARCHAR(500) NOT NULL,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX "liveChats_livestreamId_idx" ON "liveChats" ("livestreamId");
+ALTER TABLE "liveChats" ADD CONSTRAINT "fk_liveChats_livestream" FOREIGN KEY ("livestreamId") REFERENCES livestreams(id) ON DELETE CASCADE;
+ALTER TABLE "liveChats" ADD CONSTRAINT "fk_liveChats_user" FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;

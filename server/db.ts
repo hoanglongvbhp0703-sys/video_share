@@ -1,9 +1,10 @@
-import { eq, and, desc, like, ilike, or, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gt, like, ilike, or, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
   InsertUser, users, channels, videos, comments, likes, subscriptions, watchHistory,
   playlists, playlistVideos, tags, videoTags, notifications, reports, passwordResets,
+  livestreams, livestreamSignals, liveChats,
   InsertNotification,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -1049,4 +1050,143 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}
+
+// ─── Livestream functions ─────────────────────────────────────────────────────
+
+const LIVESTREAM_SELECT = {
+  id: livestreams.id,
+  channelId: livestreams.channelId,
+  title: livestreams.title,
+  status: livestreams.status,
+  viewerCount: livestreams.viewerCount,
+  thumbnailUrl: livestreams.thumbnailUrl,
+  startedAt: livestreams.startedAt,
+  endedAt: livestreams.endedAt,
+  channelName: channels.name,
+  channelAvatarUrl: channels.avatarUrl,
+};
+
+export async function startLivestream(channelId: number, title: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Kết thúc stream cũ nếu còn active
+  await db.update(livestreams)
+    .set({ status: "ended", endedAt: new Date() })
+    .where(and(eq(livestreams.channelId, channelId), eq(livestreams.status, "live")));
+  await db.insert(livestreams).values({ channelId, title });
+  const [row] = await db.select()
+    .from(livestreams)
+    .where(eq(livestreams.channelId, channelId))
+    .orderBy(desc(livestreams.startedAt))
+    .limit(1);
+  return row;
+}
+
+export async function endLivestream(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(livestreams)
+    .set({ status: "ended", endedAt: new Date(), viewerCount: 0 })
+    .where(eq(livestreams.id, id));
+}
+
+export async function getActiveLivestreamByChannel(channelId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select(LIVESTREAM_SELECT)
+    .from(livestreams)
+    .leftJoin(channels, eq(livestreams.channelId, channels.id))
+    .where(and(eq(livestreams.channelId, channelId), eq(livestreams.status, "live")))
+    .orderBy(desc(livestreams.startedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getAllActiveLivestreams(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select(LIVESTREAM_SELECT)
+    .from(livestreams)
+    .leftJoin(channels, eq(livestreams.channelId, channels.id))
+    .where(eq(livestreams.status, "live"))
+    .orderBy(desc(livestreams.viewerCount), desc(livestreams.startedAt))
+    .limit(limit);
+}
+
+export async function updateLivestreamViewerCount(id: number, count: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(livestreams).set({ viewerCount: count }).where(eq(livestreams.id, id));
+}
+
+// Viewer gửi WebRTC offer
+export async function saveLivestreamOffer(livestreamId: number, viewerId: number, payload: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Xóa offer cũ của viewer này nếu có
+  await db.delete(livestreamSignals).where(
+    and(
+      eq(livestreamSignals.livestreamId, livestreamId),
+      eq(livestreamSignals.viewerId, viewerId),
+      eq(livestreamSignals.fromRole, "viewer"),
+    )
+  );
+  await db.insert(livestreamSignals).values({ livestreamId, viewerId, fromRole: "viewer", type: "offer", payload });
+}
+
+// Streamer gửi WebRTC answer cho một viewer cụ thể
+export async function saveLivestreamAnswer(livestreamId: number, viewerId: number, payload: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(livestreamSignals).values({ livestreamId, viewerId, fromRole: "streamer", type: "answer", payload });
+}
+
+// Streamer poll: lấy offer mới từ viewer (id > afterId)
+export async function getStreamerSignals(livestreamId: number, afterId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select()
+    .from(livestreamSignals)
+    .where(and(
+      eq(livestreamSignals.livestreamId, livestreamId),
+      eq(livestreamSignals.fromRole, "viewer"),
+      gt(livestreamSignals.id, afterId),
+    ))
+    .orderBy(asc(livestreamSignals.id))
+    .limit(50);
+}
+
+// Viewer poll: lấy answer từ streamer (id > afterId)
+export async function getViewerSignals(livestreamId: number, viewerId: number, afterId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select()
+    .from(livestreamSignals)
+    .where(and(
+      eq(livestreamSignals.livestreamId, livestreamId),
+      eq(livestreamSignals.viewerId, viewerId),
+      eq(livestreamSignals.fromRole, "streamer"),
+      gt(livestreamSignals.id, afterId),
+    ))
+    .orderBy(asc(livestreamSignals.id))
+    .limit(5);
+}
+
+export async function saveLiveChat(livestreamId: number, userId: number, userName: string, message: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(liveChats).values({ livestreamId, userId, userName, message });
+}
+
+export async function getLiveChats(livestreamId: number, afterId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select()
+    .from(liveChats)
+    .where(and(eq(liveChats.livestreamId, livestreamId), gt(liveChats.id, afterId)))
+    .orderBy(asc(liveChats.id))
+    .limit(limit);
 }

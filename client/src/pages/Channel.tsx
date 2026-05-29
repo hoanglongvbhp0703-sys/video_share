@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Camera, ImagePlus } from "lucide-react";
+import { Camera, ImagePlus, Radio } from "lucide-react";
 
 interface ChannelParams {
   id?: string;
@@ -56,6 +56,11 @@ export default function Channel() {
   );
 
   const toggleSubscribeMutation = trpc.subscriptions.toggle.useMutation();
+
+  const { data: activeLivestream } = trpc.livestreams.getActiveByChannel.useQuery(
+    { channelId: activeChannelId || 0 },
+    { enabled: !!activeChannelId, refetchInterval: 10000 }
+  );
   const updateImagesMutation = trpc.channels.updateImages.useMutation({
     onSuccess: (data, variables) => {
       if (variables.type === "avatar") setLocalAvatarUrl(data.url);
@@ -189,11 +194,34 @@ export default function Channel() {
             </div>
 
             {isMyChannel ? (
-              <Button onClick={() => navigate("/upload")}>Upload video</Button>
+              <div className="flex gap-2">
+                <Button onClick={() => navigate("/upload")} variant="outline">
+                  Upload video
+                </Button>
+                <Button
+                  onClick={() => navigate("/go-live")}
+                  className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                >
+                  <Radio className="w-4 h-4" />
+                  Go Live
+                </Button>
+              </div>
             ) : (
-              <Button onClick={handleToggleSubscribe} variant={subscribed ? "outline" : "default"}>
-                {subscribed ? "Đã đăng ký" : "Đăng ký"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {activeLivestream && (
+                  <Button
+                    onClick={() => navigate(`/live/${activeChannelId}`)}
+                    className="bg-red-600 hover:bg-red-700 text-white gap-1.5 animate-pulse"
+                    size="sm"
+                  >
+                    <span className="w-2 h-2 bg-white rounded-full" />
+                    LIVE
+                  </Button>
+                )}
+                <Button onClick={handleToggleSubscribe} variant={subscribed ? "outline" : "default"}>
+                  {subscribed ? "Đã đăng ký" : "Đăng ký"}
+                </Button>
+              </div>
             )}
           </div>
 

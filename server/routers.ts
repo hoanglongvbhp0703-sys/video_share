@@ -58,6 +58,17 @@ import {
   adminDeleteVideo,
   adminDeleteComment,
   updateChannelImages,
+  startLivestream,
+  endLivestream,
+  getActiveLivestreamByChannel,
+  getAllActiveLivestreams,
+  saveLivestreamOffer,
+  saveLivestreamAnswer,
+  getStreamerSignals,
+  getViewerSignals,
+  saveLiveChat,
+  getLiveChats,
+  updateLivestreamViewerCount,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -519,6 +530,65 @@ export const appRouter = router({
     deleteComment: adminProcedure
       .input(z.object({ commentId: z.number() }))
       .mutation(({ input }) => adminDeleteComment(input.commentId)),
+  }),
+
+  // Livestream routers
+  livestreams: router({
+    start: protectedProcedure
+      .input(z.object({ title: z.string().min(1).max(255) }))
+      .mutation(async ({ input, ctx }) => {
+        const channel = await getOrCreateChannel(ctx.user.id, ctx.user.name || "User");
+        return startLivestream(channel.id, input.title);
+      }),
+
+    end: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => endLivestream(input.id)),
+
+    getActiveByChannel: publicProcedure
+      .input(z.object({ channelId: z.number() }))
+      .query(({ input }) => getActiveLivestreamByChannel(input.channelId)),
+
+    getAllActive: publicProcedure
+      .query(() => getAllActiveLivestreams()),
+
+    // Viewer gửi WebRTC offer (SDP đầy đủ sau khi ICE gathering xong)
+    sendViewerOffer: protectedProcedure
+      .input(z.object({ livestreamId: z.number(), payload: z.string() }))
+      .mutation(({ input, ctx }) =>
+        saveLivestreamOffer(input.livestreamId, ctx.user.id, input.payload)
+      ),
+
+    // Streamer gửi WebRTC answer cho một viewer
+    sendStreamerAnswer: protectedProcedure
+      .input(z.object({ livestreamId: z.number(), viewerId: z.number(), payload: z.string() }))
+      .mutation(({ input }) =>
+        saveLivestreamAnswer(input.livestreamId, input.viewerId, input.payload)
+      ),
+
+    // Streamer poll: lấy offer mới từ viewers
+    getStreamerSignals: protectedProcedure
+      .input(z.object({ livestreamId: z.number(), afterId: z.number().default(0) }))
+      .query(({ input }) => getStreamerSignals(input.livestreamId, input.afterId)),
+
+    // Viewer poll: lấy answer từ streamer
+    getViewerSignals: publicProcedure
+      .input(z.object({ livestreamId: z.number(), viewerId: z.number(), afterId: z.number().default(0) }))
+      .query(({ input }) => getViewerSignals(input.livestreamId, input.viewerId, input.afterId)),
+
+    sendChat: protectedProcedure
+      .input(z.object({ livestreamId: z.number(), message: z.string().min(1).max(500) }))
+      .mutation(({ input, ctx }) =>
+        saveLiveChat(input.livestreamId, ctx.user.id, ctx.user.name || "Ẩn danh", input.message)
+      ),
+
+    getChats: publicProcedure
+      .input(z.object({ livestreamId: z.number(), afterId: z.number().default(0) }))
+      .query(({ input }) => getLiveChats(input.livestreamId, input.afterId)),
+
+    updateViewerCount: protectedProcedure
+      .input(z.object({ id: z.number(), count: z.number() }))
+      .mutation(({ input }) => updateLivestreamViewerCount(input.id, input.count)),
   }),
 });
 

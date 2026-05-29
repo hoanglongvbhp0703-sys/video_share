@@ -272,6 +272,58 @@ export const passwordResets = pgTable(
 
 export type PasswordReset = typeof passwordResets.$inferSelect;
 
+export const livestreams = pgTable(
+  "livestreams",
+  {
+    id: serial("id").primaryKey(),
+    channelId: integer("channelId").notNull().references(() => channels.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }).notNull(),
+    status: varchar("status", { length: 10 }).$type<"live" | "ended">().default("live").notNull(),
+    viewerCount: integer("viewerCount").default(0).notNull(),
+    thumbnailUrl: text("thumbnailUrl"),
+    startedAt: timestamp("startedAt").defaultNow().notNull(),
+    endedAt: timestamp("endedAt"),
+  },
+  (table) => ({
+    channelIdIdx: index("livestreams_channelId_idx").on(table.channelId),
+    statusIdx: index("livestreams_status_idx").on(table.status),
+  })
+);
+
+export type Livestream = typeof livestreams.$inferSelect;
+
+// Bảng signaling WebRTC: viewer gửi offer, streamer gửi answer
+export const livestreamSignals = pgTable(
+  "livestreamSignals",
+  {
+    id: serial("id").primaryKey(),
+    livestreamId: integer("livestreamId").notNull().references(() => livestreams.id, { onDelete: "cascade" }),
+    viewerId: integer("viewerId").notNull(),
+    fromRole: varchar("fromRole", { length: 10 }).$type<"streamer" | "viewer">().notNull(),
+    type: varchar("type", { length: 10 }).$type<"offer" | "answer">().notNull(),
+    payload: text("payload").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    lsViewerIdx: index("lsSignals_livestreamId_viewer_idx").on(table.livestreamId, table.viewerId),
+  })
+);
+
+export const liveChats = pgTable(
+  "liveChats",
+  {
+    id: serial("id").primaryKey(),
+    livestreamId: integer("livestreamId").notNull().references(() => livestreams.id, { onDelete: "cascade" }),
+    userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userName: varchar("userName", { length: 255 }).notNull(),
+    message: varchar("message", { length: 500 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    livestreamIdIdx: index("liveChats_livestreamId_idx").on(table.livestreamId),
+  })
+);
+
 // ─── Relations (Drizzle query layer) ─────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
