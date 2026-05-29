@@ -9,6 +9,29 @@ import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { SESSION_TOKEN_KEY } from "@shared/const";
+
+async function uploadFileDirect(
+  fileKey: string,
+  file: File | Blob,
+  mimeType: string
+): Promise<{ url: string; key: string }> {
+  const token = sessionStorage.getItem(SESSION_TOKEN_KEY);
+  const params = new URLSearchParams({ key: fileKey, mimeType });
+  const resp = await fetch(`/api/upload-file?${params}`, {
+    method: "POST",
+    body: file,
+    headers: {
+      "Content-Type": mimeType,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `Upload failed (${resp.status})`);
+  }
+  return resp.json();
+}
 
 function extractFirstFrame(file: File): Promise<{ thumbFile: File; duration: number }> {
   return new Promise((resolve, reject) => {
@@ -85,7 +108,6 @@ export default function Upload() {
   const [isAutoThumbnail, setIsAutoThumbnail] = useState(false);
 
   const uploadPresignedUrlMutation = trpc.videos.uploadPresignedUrl.useMutation();
-  const uploadFileMutation = trpc.videos.uploadFile.useMutation();
   const createWithUrlsMutation = trpc.videos.createWithUrls.useMutation();
 
   if (!isAuthenticated) {
@@ -283,15 +305,14 @@ export default function Upload() {
 
       setUploadProgress(10);
 
-      // Step 2: Upload video file to S3
-      const videoFileData = await videoFile.arrayBuffer();
+      // Step 2: Upload video file directly (supports files up to 500 MB)
       const videoStartTime = Date.now();
 
-      const videoUploadResult = await uploadFileMutation.mutateAsync({
-        fileKey: presignedUrls.videoKey,
-        fileData: new Uint8Array(videoFileData),
-        mimeType: videoFile.type,
-      });
+      const videoUploadResult = await uploadFileDirect(
+        presignedUrls.videoKey,
+        videoFile,
+        videoFile.type,
+      );
 
       // Calculate video upload speed
       const videoUploadTime = (Date.now() - videoStartTime) / 1000; // seconds
@@ -304,14 +325,13 @@ export default function Upload() {
       // Step 3: Upload thumbnail if provided
       let thumbnailUrl: string | undefined;
       if (thumbnailFile && presignedUrls.thumbnailKey) {
-        const thumbnailFileData = await thumbnailFile.arrayBuffer();
         const thumbnailStartTime = Date.now();
 
-        const thumbnailUploadResult = await uploadFileMutation.mutateAsync({
-          fileKey: presignedUrls.thumbnailKey,
-          fileData: new Uint8Array(thumbnailFileData),
-          mimeType: thumbnailFile.type,
-        });
+        const thumbnailUploadResult = await uploadFileDirect(
+          presignedUrls.thumbnailKey,
+          thumbnailFile,
+          thumbnailFile.type,
+        );
 
         // Calculate thumbnail upload speed
         const thumbnailUploadTime = (Date.now() - thumbnailStartTime) / 1000;

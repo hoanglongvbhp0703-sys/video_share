@@ -9,6 +9,8 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { sdk } from "./sdk";
+import { storagePut } from "../storage";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -39,6 +41,34 @@ async function startServer() {
   registerLocalAuthRoutes(app);
   registerOAuthRoutes(app);
   registerDevAuthRoutes(app);
+
+  // Large file upload — bypasses tRPC 50 MB JSON limit
+  app.post(
+    "/api/upload-file",
+    express.raw({ limit: "500mb", type: "*/*" }),
+    async (req, res) => {
+      try {
+        await sdk.authenticateRequest(req);
+      } catch {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      const fileKey = typeof req.query.key === "string" ? req.query.key : null;
+      const mimeType = typeof req.query.mimeType === "string" ? req.query.mimeType : null;
+      if (!fileKey || !mimeType) {
+        res.status(400).json({ error: "Missing key or mimeType" });
+        return;
+      }
+      try {
+        const result = await storagePut(fileKey, req.body as Buffer, mimeType);
+        res.json(result);
+      } catch (err) {
+        console.error("Upload error:", err);
+        res.status(500).json({ error: "Upload failed" });
+      }
+    }
+  );
+
   // tRPC API
   app.use(
     "/api/trpc",
