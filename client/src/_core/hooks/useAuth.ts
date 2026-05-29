@@ -1,5 +1,6 @@
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
+import { SESSION_TOKEN_KEY } from "@shared/const";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -50,6 +51,7 @@ export function useAuth(options?: UseAuthOptions) {
       throw error;
     } finally {
       localStorage.removeItem("manus-runtime-user-info");
+      sessionStorage.removeItem(SESSION_TOKEN_KEY);
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
     }

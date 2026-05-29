@@ -69,6 +69,7 @@ import {
   saveLiveChat,
   getLiveChats,
   updateLivestreamViewerCount,
+  getEndedLivestreamsByChannel,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -248,6 +249,10 @@ export const appRouter = router({
     getVideos: publicProcedure
       .input(z.object({ channelId: z.number(), limit: z.number().default(20), offset: z.number().default(0) }))
       .query(({ input }) => getVideosByChannelId(input.channelId, input.limit, input.offset)),
+
+    getLivestreams: publicProcedure
+      .input(z.object({ channelId: z.number(), limit: z.number().default(20), offset: z.number().default(0) }))
+      .query(({ input }) => getEndedLivestreamsByChannel(input.channelId, input.limit, input.offset)),
   }),
 
   // Comment routers

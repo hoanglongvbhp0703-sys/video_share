@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import VideoCard from "@/components/VideoCard";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Camera, ImagePlus, Radio } from "lucide-react";
+import { Camera, ImagePlus, Radio, Video, Tv } from "lucide-react";
 
 interface ChannelParams {
   id?: string;
@@ -18,7 +18,6 @@ export default function Channel() {
   const { id } = useParams<ChannelParams>();
   const [, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
-  const [isSubscribed, setIsSubscribed] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [localBannerUrl, setLocalBannerUrl] = useState<string | null>(null);
 
@@ -26,6 +25,7 @@ export default function Channel() {
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const channelId = id ? parseInt(id) : undefined;
+  const [activeTab, setActiveTab] = useState<"videos" | "livestreams">("videos");
 
   const utils = trpc.useUtils();
 
@@ -41,6 +41,10 @@ export default function Channel() {
 
   const activeChannelId = channelId || myChannel?.id;
   const { data: videos, isLoading: videosLoading } = trpc.channels.getVideos.useQuery(
+    { channelId: activeChannelId || 0, limit: 20, offset: 0 },
+    { enabled: !!activeChannelId }
+  );
+  const { data: pastLivestreams, isLoading: livestreamsLoading } = trpc.channels.getLivestreams.useQuery(
     { channelId: activeChannelId || 0, limit: 20, offset: 0 },
     { enabled: !!activeChannelId }
   );
@@ -100,8 +104,9 @@ export default function Channel() {
       { channelId: activeChannelId },
       {
         onSuccess: (result) => {
-          setIsSubscribed(result);
           toast.success(result ? "Đã đăng ký kênh" : "Đã hủy đăng ký");
+          utils.subscriptions.isSubscribed.invalidate({ channelId: activeChannelId });
+          utils.subscriptions.getCount.invalidate({ channelId: activeChannelId });
         },
       }
     );
@@ -230,30 +235,117 @@ export default function Channel() {
           )}
         </div>
 
-        {/* Videos Section */}
-        <div className="p-4 md:p-6">
-          <h2 className="text-2xl font-bold text-foreground mb-6">Video</h2>
+        {/* Tab bar */}
+        <div className="flex border-b border-border px-4 md:px-6">
+          <button
+            onClick={() => setActiveTab("videos")}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "videos"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            Video
+            {videos && videos.length > 0 && (
+              <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{videos.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("livestreams")}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "livestreams"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Tv className="w-4 h-4" />
+            Livestream
+            {pastLivestreams && pastLivestreams.length > 0 && (
+              <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{pastLivestreams.length}</span>
+            )}
+          </button>
+        </div>
 
-          {videosLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-2">
-                  <Skeleton className="w-full aspect-video rounded-lg" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-3 w-2/3" />
+        {/* Tab content */}
+        <div className="p-4 md:p-6">
+          {activeTab === "videos" && (
+            <>
+              {videosLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-2">
+                      <Skeleton className="w-full aspect-video rounded-lg" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-2/3" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : videos && videos.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {videos.map((video) => (
-                <VideoCard key={video.id} video={{ ...video, channelName: displayChannel.name }} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Chưa có video nào</p>
-            </div>
+              ) : videos && videos.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {videos.map((video) => (
+                    <VideoCard key={video.id} video={{ ...video, channelName: displayChannel.name }} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Chưa có video nào</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === "livestreams" && (
+            <>
+              {livestreamsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-2">
+                      <Skeleton className="w-full aspect-video rounded-lg" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              ) : pastLivestreams && pastLivestreams.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {pastLivestreams.map((stream) => (
+                    <div key={stream.id} className="flex flex-col gap-2 group cursor-default">
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
+                        {stream.thumbnailUrl ? (
+                          <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Tv className="w-10 h-10 text-muted-foreground/40" />
+                          </div>
+                        )}
+                        <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+                          Đã phát
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground line-clamp-2">
+                          {stream.title || "Livestream không có tiêu đề"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {stream.startedAt
+                            ? new Date(stream.startedAt).toLocaleDateString("vi-VN", {
+                                day: "2-digit", month: "2-digit", year: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                              })
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Tv className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground">Chưa có buổi livestream nào</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

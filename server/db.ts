@@ -1116,6 +1116,19 @@ export async function getAllActiveLivestreams(limit = 20) {
     .limit(limit);
 }
 
+export async function getEndedLivestreamsByChannel(channelId: number, limit = 20, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select(LIVESTREAM_SELECT)
+    .from(livestreams)
+    .leftJoin(channels, eq(livestreams.channelId, channels.id))
+    .where(and(eq(livestreams.channelId, channelId), eq(livestreams.status, "ended")))
+    .orderBy(desc(livestreams.startedAt))
+    .limit(limit)
+    .offset(offset);
+}
+
 export async function updateLivestreamViewerCount(id: number, count: number) {
   const db = await getDb();
   if (!db) return;

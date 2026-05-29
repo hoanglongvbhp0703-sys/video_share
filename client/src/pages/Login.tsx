@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getLoginUrl, getRegisterUrl } from "@/const";
+import { SESSION_TOKEN_KEY } from "@shared/const";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
@@ -47,6 +48,7 @@ export default function Login() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
+        if (data?.token) sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
         window.location.href = "/";
       } else if (res.status === 422 && data?.error === "NAME_REQUIRED") {
         setError("Email này chưa có tài khoản. Vui lòng đăng ký trước.");

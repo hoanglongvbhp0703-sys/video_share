@@ -83,7 +83,7 @@ export function registerLocalAuthRoutes(app: Express) {
 
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-      res.json({ success: true });
+      res.json({ success: true, token });
     } catch (error) {
       console.error("[LocalAuth] Login failed", error);
       res.status(500).json({ error: "SERVER_ERROR", message: "Đã xảy ra lỗi, vui lòng thử lại" });

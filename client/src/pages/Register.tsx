@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SESSION_TOKEN_KEY } from "@shared/const";
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 
@@ -53,6 +54,7 @@ export default function Register() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
+        if (data?.token) sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
         setSuccess(true);
         setTimeout(() => { window.location.href = "/"; }, 1200);
       } else if (data?.error === "INVALID_CREDENTIALS") {
