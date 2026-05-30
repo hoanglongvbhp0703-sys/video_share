@@ -114,6 +114,7 @@ export default function Watch() {
 
   const incrementViewMutation = trpc.videos.incrementView.useMutation();
   const recordHistoryMutation = trpc.watchHistory.record.useMutation();
+  const updateDurationMutation = trpc.watchHistory.updateDuration.useMutation();
   const utils = trpc.useUtils();
 
   const toggleLikeMutation = trpc.likes.toggle.useMutation({
@@ -192,6 +193,16 @@ export default function Watch() {
       toast.info(t("watch.resumeFrom", { time: formatTime(resumeTime) }), { duration: 4000 });
     }
   }, []);
+
+  // Save position to DB when navigating away (so History progress bar is up to date)
+  useEffect(() => {
+    return () => {
+      const pos = Math.floor(currentTimeRef.current);
+      if (pos > 5 && isAuthenticated) {
+        updateDurationMutation.mutate({ videoId, duration: pos });
+      }
+    };
+  }, [videoId, isAuthenticated]);
 
   // Save position every 10 seconds
   useEffect(() => {

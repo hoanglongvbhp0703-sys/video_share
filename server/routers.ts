@@ -25,6 +25,7 @@ import {
   getChannelSubscriberCount,
   createVideo,
   recordWatchHistory,
+  updateWatchDuration,
   getWatchHistoryWithVideos,
   getUsersByIds,
   getUserByOpenId,
@@ -424,6 +425,10 @@ export const appRouter = router({
     record: protectedProcedure
       .input(z.object({ videoId: z.number(), watchDuration: z.number().default(0) }))
       .mutation(({ input, ctx }) => recordWatchHistory(input.videoId, ctx.user.id, input.watchDuration)),
+
+    updateDuration: protectedProcedure
+      .input(z.object({ videoId: z.number(), duration: z.number().min(0) }))
+      .mutation(({ input, ctx }) => updateWatchDuration(ctx.user.id, input.videoId, input.duration)),
 
     getHistory: protectedProcedure
       .input(z.object({ limit: z.number().default(20), offset: z.number().default(0) }))

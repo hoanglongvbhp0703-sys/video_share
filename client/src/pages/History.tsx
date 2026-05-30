@@ -90,6 +90,27 @@ export default function History() {
                       {formatDuration(item.videoDuration)}
                     </div>
                   )}
+                  {/* Progress bar — shows how far the user has watched */}
+                  {(() => {
+                    const total = item.videoDuration ?? 0;
+                    if (total <= 0) return null;
+                    // Prefer localStorage position (most recent, within 24h)
+                    let watched = item.watchDuration ?? 0;
+                    try {
+                      const raw = localStorage.getItem(`vs_resume_${item.videoId}`);
+                      if (raw) {
+                        const { position, timestamp } = JSON.parse(raw) as { position: number; timestamp: number };
+                        if (Date.now() - timestamp < 86400000 && position > 0) watched = position;
+                      }
+                    } catch {}
+                    const pct = Math.min(100, (watched / total) * 100);
+                    if (pct < 1) return null;
+                    return (
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/30">
+                        <div className="h-full bg-red-500 transition-none" style={{ width: `${pct}%` }} />
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 line-clamp-2 group-hover:text-primary transition-colors">

@@ -608,6 +608,23 @@ export async function recordWatchHistory(videoId: number, userId: number, watchD
   }
 }
 
+export async function updateWatchDuration(userId: number, videoId: number, duration: number) {
+  const db = await getDb();
+  if (!db || duration <= 0) return null;
+
+  // Update the most recent history entry for this user+video
+  await db.execute(sql`
+    UPDATE "watchHistory"
+    SET "watchDuration" = ${duration}
+    WHERE id = (
+      SELECT id FROM "watchHistory"
+      WHERE "userId" = ${userId} AND "videoId" = ${videoId}
+      ORDER BY "watchedAt" DESC
+      LIMIT 1
+    )
+  `);
+}
+
 export async function getWatchHistory(userId: number, limit: number = 20, offset: number = 0) {
   const db = await getDb();
   if (!db) return [];
