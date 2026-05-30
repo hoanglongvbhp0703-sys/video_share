@@ -26,7 +26,7 @@ async function storagePutSupabase(
   data: Buffer | Uint8Array | string,
   contentType: string,
 ): Promise<{ key: string; url: string }> {
-  const key = appendHashSuffix(normalizeKey(relKey));
+  const key = appendHashSuffix(sanitizeKey(normalizeKey(relKey)));
   const bucket = ENV.supabaseBucket;
   const body = typeof data === "string" ? Buffer.from(data) : Buffer.from(data as Uint8Array);
   const url = `${ENV.supabaseUrl}/storage/v1/object/${bucket}/${key}`;
@@ -65,6 +65,21 @@ function getForgeConfig() {
 
 function normalizeKey(relKey: string): string {
   return relKey.replace(/^\/+/, "");
+}
+
+function sanitizeKey(key: string): string {
+  // Giữ lại cấu trúc thư mục (path segments), sanitize từng segment
+  return key
+    .split("/")
+    .map((segment) =>
+      segment
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")   // bỏ dấu tiếng Việt
+        .replace(/[^\w.\-]/g, "_")          // ký tự đặc biệt → _
+        .replace(/_+/g, "_")                // nhiều _ liên tiếp → 1 _
+        .replace(/^_+|_+$/g, "")            // bỏ _ đầu/cuối
+    )
+    .join("/");
 }
 
 function appendHashSuffix(relKey: string): string {
