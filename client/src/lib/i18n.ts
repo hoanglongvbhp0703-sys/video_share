@@ -14,7 +14,7 @@ export const LANGUAGES: { code: Language; label: string; flag: string }[] = [
   { code: "ja", label: "日本語", flag: "🇯🇵" },
 ];
 
-const savedLang = (localStorage.getItem(LANG_KEY) as Language) || "vi";
+const savedLang = (localStorage.getItem(LANG_KEY) as Language) || "ja";
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -23,7 +23,7 @@ i18n.use(initReactI18next).init({
     ja: { translation: ja },
   },
   lng: savedLang,
-  fallbackLng: "vi",
+  fallbackLng: "ja",
   interpolation: { escapeValue: false },
 });
 
