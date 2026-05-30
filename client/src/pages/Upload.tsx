@@ -126,7 +126,7 @@ export default function Upload() {
   }
 
   const validateVideoFile = (file: File): boolean => {
-    if (file.size > 500 * 1024 * 1024) {
+    if (file.size > 50 * 1024 * 1024) {
       toast.error(t("upload.videoTooLarge"));
       return false;
     }

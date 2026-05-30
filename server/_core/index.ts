@@ -57,7 +57,7 @@ async function startServer() {
   // Large file upload — bypasses tRPC 50 MB JSON limit
   app.post(
     "/api/upload-file",
-    express.raw({ limit: "500mb", type: "*/*" }),
+    express.raw({ limit: "50mb", type: "*/*" }),
     async (req, res) => {
       try {
         await sdk.authenticateRequest(req);
