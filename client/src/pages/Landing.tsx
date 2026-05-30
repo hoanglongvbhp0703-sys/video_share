@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { Play, Upload, Users, Zap, Star, ArrowDown } from "lucide-react";
+import { Play, Upload, Users, Zap, Star, ArrowDown, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { LANGUAGES } from "@/lib/i18n";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -69,6 +70,51 @@ function StatCard({ number, label, delay = "0ms" }: StatCardProps) {
   );
 }
 
+function LanguageSwitcher() {
+  const { i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = LANGUAGES.find((l) => l.code === i18n.language) ?? LANGUAGES[0];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-medium transition-all backdrop-blur-sm"
+      >
+        <Globe className="w-4 h-4 opacity-80" />
+        <span>{current.flag} {current.label}</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-44 bg-[#1a1a2e]/95 backdrop-blur-sm border border-white/20 rounded-xl shadow-xl overflow-hidden z-50">
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => { i18n.changeLanguage(lang.code); setOpen(false); }}
+              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${
+                i18n.language === lang.code
+                  ? "bg-white/20 text-white font-semibold"
+                  : "text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <span className="text-base">{lang.flag}</span>
+              <span>{lang.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Landing() {
   const [, navigate] = useLocation();
   const { t } = useTranslation();
@@ -104,6 +150,10 @@ export default function Landing() {
     <div className="min-h-screen overflow-x-hidden">
       {/* Hero */}
       <section className="relative min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] overflow-hidden">
+        {/* Language switcher — top right */}
+        <div className="absolute top-4 right-4 z-20">
+          <LanguageSwitcher />
+        </div>
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/30 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute bottom-1/4 -right-32 w-80 h-80 bg-purple-500/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: "1s" }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[150px]" />
