@@ -330,7 +330,7 @@ async function seedDatabase() {
     `;
     console.log("✓ Admin user: admin@example.com / Admin123!");
 
-    // Seed users
+    // Seed users (upsert by openId)
     console.log("👤 Tạo users...");
     const userIds = [];
     for (const user of mockUsers) {
@@ -344,7 +344,7 @@ async function seedDatabase() {
     }
     console.log(`✓ Đã tạo ${userIds.length} users (password: ${MOCK_PASSWORD})`);
 
-    // Seed channels
+    // Seed channels (upsert by userId — mỗi user chỉ có 1 channel)
     console.log("📺 Tạo channels...");
     const channelIds = [];
     for (let i = 0; i < mockChannels.length; i++) {
@@ -352,10 +352,20 @@ async function seedDatabase() {
       const [result] = await sql`
         INSERT INTO channels ("userId", name, description, "avatarUrl", "subscriberCount")
         VALUES (${userIds[i]}, ${channel.name}, ${channel.description}, ${channel.avatarUrl}, ${channel.subscriberCount})
+        ON CONFLICT ("userId") DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          "avatarUrl" = EXCLUDED."avatarUrl",
+          "subscriberCount" = EXCLUDED."subscriberCount"
         RETURNING id
       `;
       channelIds.push(result.id);
     }
+
+    // Xóa toàn bộ videos cũ của các seeded channels để tránh duplicate khi seed lại
+    console.log("🗑️ Xóa videos cũ của seeded channels...");
+    await sql`DELETE FROM videos WHERE "channelId" = ANY(${channelIds})`;
+
     console.log(`✓ Đã tạo ${channelIds.length} channels`);
 
     // Public domain sample videos (Google Cloud Storage) — cycle through for variety
