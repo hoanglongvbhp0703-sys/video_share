@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Layout from "@/components/Layout";
 import VideoPlayer from "@/components/VideoPlayer";
 import SaveToPlaylistDialog from "@/components/SaveToPlaylistDialog";
@@ -14,7 +14,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThumbsUp, ThumbsDown, Share2, MoreVertical, Bell, ListVideo, MessageSquare } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Share2, MoreVertical, Bell, ListVideo, MessageSquare, Smile } from "lucide-react";
+import Picker from "@emoji-mart/react";
+import data from "@emoji-mart/data";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -28,12 +30,15 @@ interface VideoParams {
 export default function Watch() {
   const { id } = useParams<VideoParams>();
   const { user, isAuthenticated } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dateLocale = useDateLocale();
   const videoId = parseInt(id || "0");
 
   const [commentText, setCommentText] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const { data: video, isLoading: videoLoading } = trpc.videos.getById.useQuery(
     { id: videoId },
@@ -155,12 +160,41 @@ export default function Watch() {
     }
   }, [videoId]);
 
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showEmojiPicker]);
+
+  const handleEmojiSelect = (emoji: { native: string }) => {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setCommentText((prev) => prev + emoji.native);
+      return;
+    }
+    const start = ta.selectionStart ?? commentText.length;
+    const end = ta.selectionEnd ?? commentText.length;
+    const newText = commentText.slice(0, start) + emoji.native + commentText.slice(end);
+    setCommentText(newText);
+    requestAnimationFrame(() => {
+      const pos = start + emoji.native.length;
+      ta.selectionStart = ta.selectionEnd = pos;
+      ta.focus();
+    });
+  };
+
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) { toast.error(t("watch.commentLoginError")); return; }
     if (!commentText.trim()) { toast.error(t("watch.commentEmptyError")); return; }
     createCommentMutation.mutate({ videoId, content: commentText });
     setCommentText("");
+    setShowEmojiPicker(false);
   };
 
   const handleToggleLike = (type: "like" | "dislike") => {
@@ -315,16 +349,40 @@ export default function Watch() {
                         {user?.name?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
                     </Avatar>
-                    <Textarea
-                      placeholder={t("watch.addComment")}
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      className="resize-none"
-                      rows={3}
-                    />
+                    <div className="relative flex-1">
+                      <Textarea
+                        ref={textareaRef}
+                        placeholder={t("watch.addComment")}
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        className="resize-none pr-10"
+                        rows={3}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker((v) => !v)}
+                        className="absolute bottom-2 right-2 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        title="Chèn emoji"
+                      >
+                        <Smile className="w-5 h-5" />
+                      </button>
+                      {showEmojiPicker && (
+                        <div ref={pickerRef} className="absolute bottom-full right-0 z-50 mb-1 shadow-xl">
+                          <Picker
+                            data={data}
+                            onEmojiSelect={handleEmojiSelect}
+                            theme={document.documentElement.classList.contains("dark") ? "dark" : "light"}
+                            locale={["vi", "ja", "en"].includes(i18n.language) ? i18n.language : "en"}
+                            previewPosition="none"
+                            skinTonePosition="search"
+                            set="native"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setCommentText("")}>
+                    <Button variant="outline" onClick={() => { setCommentText(""); setShowEmojiPicker(false); }}>
                       {t("watch.cancel")}
                     </Button>
                     <Button disabled={!commentText.trim() || createCommentMutation.isPending} type="submit">
