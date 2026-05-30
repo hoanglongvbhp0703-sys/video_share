@@ -5,7 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Tv, CalendarDays, Users, Video, Settings } from "lucide-react";
+import { User, Tv, CalendarDays, Users, Video, Settings, AlertTriangle } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -17,8 +17,9 @@ export default function Profile() {
   const { t } = useTranslation();
   const dateLocale = useDateLocale();
 
-  const { data: profile, isLoading } = trpc.users.getMyProfile.useQuery(undefined, {
+  const { data: profile, isLoading, error, refetch } = trpc.users.getMyProfile.useQuery(undefined, {
     enabled: isAuthenticated,
+    retry: 1,
   });
 
   if (!isAuthenticated) {
@@ -52,6 +53,19 @@ export default function Profile() {
             </div>
           </div>
           <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="p-6 max-w-2xl mx-auto text-center py-16">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">{t("profile.loadError")}</h2>
+          <p className="text-gray-500 text-sm mb-6">{t("profile.loadErrorDesc")}</p>
+          <Button variant="outline" onClick={() => refetch()}>{t("profile.retry")}</Button>
         </div>
       </Layout>
     );

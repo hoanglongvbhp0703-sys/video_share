@@ -38,9 +38,9 @@ export default function Channel() {
 
   const utils = trpc.useUtils();
 
-  const { data: myChannel } = trpc.channels.getMyChannel.useQuery(
+  const { data: myChannel, isLoading: myChannelLoading, error: myChannelError } = trpc.channels.getMyChannel.useQuery(
     undefined,
-    { enabled: isAuthenticated && !channelId }
+    { enabled: isAuthenticated && !channelId, retry: 1 }
   );
 
   const { data: channel, isLoading: channelLoading } = trpc.channels.getById.useQuery(
@@ -164,7 +164,35 @@ export default function Channel() {
   const bannerUrl = localBannerUrl ?? displayChannel?.bannerUrl;
   const isUploading = updateImagesMutation.isPending;
 
-  if (channelLoading || !displayChannel) {
+  // Not logged in, viewing own channel (/channel without ID)
+  if (!channelId && !isAuthenticated) {
+    return (
+      <Layout>
+        <div className="p-6 max-w-2xl mx-auto text-center py-16">
+          <Radio className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("channel.notLoggedIn")}</h2>
+          <p className="text-gray-500 mb-6">{t("channel.notLoggedInDesc")}</p>
+          <a href="/login" className="inline-flex items-center px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors">
+            {t("channel.login")}
+          </a>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (myChannelError && !channelId) {
+    return (
+      <Layout>
+        <div className="p-6 max-w-2xl mx-auto text-center py-16">
+          <Tv className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t("channel.loadError")}</h2>
+          <p className="text-gray-500 mb-6">{t("channel.loadErrorDesc")}</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (channelLoading || myChannelLoading || !displayChannel) {
     return (
       <Layout>
         <div className="p-4 md:p-6">
