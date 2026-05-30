@@ -155,9 +155,23 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
             <Menu className="w-6 h-6 text-foreground" />
           </button>
           <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary hover:text-primary/90 transition-colors">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">VS</span>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" className="w-8 h-8 shrink-0">
+              <defs>
+                <linearGradient id="topnav-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#4aad60"/>
+                  <stop offset="100%" stopColor="#2d7a42"/>
+                </linearGradient>
+              </defs>
+              <rect width="48" height="48" rx="10" fill="url(#topnav-bg)"/>
+              <rect x="4" y="10" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="4" y="20" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="4" y="30" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="39" y="10" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="39" y="20" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="39" y="30" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="11" y="8" width="26" height="32" rx="3" fill="rgba(0,0,0,0.15)"/>
+              <path d="M20 17 L32 24 L20 31 Z" fill="white"/>
+            </svg>
             <span className="hidden sm:inline">VideoShare</span>
           </Link>
         </div>

@@ -177,9 +177,23 @@ export default function Landing() {
 
         <div className={`relative z-10 text-center px-4 transition-all duration-1000 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"}`}>
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/40">
-              <span className="text-white text-xl font-extrabold">VS</span>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" className="w-14 h-14 shrink-0 drop-shadow-lg">
+              <defs>
+                <linearGradient id="landing-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#4aad60"/>
+                  <stop offset="100%" stopColor="#2d7a42"/>
+                </linearGradient>
+              </defs>
+              <rect width="48" height="48" rx="10" fill="url(#landing-bg)"/>
+              <rect x="4" y="10" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="4" y="20" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="4" y="30" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="39" y="10" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="39" y="20" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="39" y="30" width="5" height="5" rx="1" fill="rgba(255,255,255,0.25)"/>
+              <rect x="11" y="8" width="26" height="32" rx="3" fill="rgba(0,0,0,0.15)"/>
+              <path d="M20 17 L32 24 L20 31 Z" fill="white"/>
+            </svg>
             <span className="text-4xl font-extrabold text-white tracking-tight">VideoShare</span>
           </div>
 
