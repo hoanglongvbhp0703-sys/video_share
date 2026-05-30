@@ -105,11 +105,15 @@ export async function getUserByEmail(email: string) {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
+    console.warn("[Database] getUserByOpenId: database not available for openId:", openId);
     return undefined;
   }
 
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+
+  if (result.length === 0) {
+    console.warn("[Database] getUserByOpenId: no user found for openId:", openId);
+  }
 
   return result.length > 0 ? result[0] : undefined;
 }

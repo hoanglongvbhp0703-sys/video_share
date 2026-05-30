@@ -281,11 +281,16 @@ class SDKServer {
     }
 
     const sessionUserId = session.openId;
+    const isLocalAuth = session.appId === "local";
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, sync from OAuth server automatically
+    // If user not in DB, sync from OAuth server automatically (only for OAuth sessions)
     if (!user) {
+      if (isLocalAuth) {
+        // Local auth sessions cannot be synced from OAuth — session is expired or user was deleted
+        throw ForbiddenError("Session expired, please log in again");
+      }
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
         await db.upsertUser({
@@ -333,7 +338,7 @@ function buildCronUser(
     name: userInfo.name || "Manus Scheduled Task",
     email: null,
     loginMethod: null,
-    password: null,
+    passwordHash: null,
     avatarUrl: null,
     bio: null,
     role: "user",
