@@ -18,17 +18,33 @@ interface VideoResultsProps {
 }
 
 function VideoResults({ category, searchQuery }: VideoResultsProps) {
-  const { data: categoryVideos } = trpc.videos.getByCategory.useQuery(
-    { category: category ?? "", limit: 4 },
-    { enabled: !!category }
-  );
+  const { t, i18n } = useTranslation();
+  // Prioritize searchQuery — category alone returns unrelated results
+  const useSearch = !!searchQuery;
 
-  const { data: searchedVideos } = trpc.videos.search.useQuery(
+  const { data: searchedVideos, isLoading: searchLoading } = trpc.videos.search.useQuery(
     { query: searchQuery ?? "", limit: 4 },
-    { enabled: !!searchQuery && !category }
+    { enabled: useSearch }
   );
 
-  const videos = categoryVideos ?? searchedVideos ?? [];
+  const { data: categoryVideos, isLoading: categoryLoading } = trpc.videos.getByCategory.useQuery(
+    { category: category ?? "", limit: 4 },
+    { enabled: !useSearch && !!category }
+  );
+
+  const isLoading = searchLoading || categoryLoading;
+  const videos = (useSearch ? searchedVideos : categoryVideos) ?? [];
+
+  if (isLoading) return null;
+
+  // searchQuery was specific but nothing matched in the DB
+  if (useSearch && videos.length === 0) {
+    const msg =
+      i18n.language === "vi" ? `Không tìm thấy video nào khớp với "${searchQuery}".` :
+      i18n.language === "ja" ? `「${searchQuery}」に一致する動画が見つかりませんでした。` :
+      `No videos found matching "${searchQuery}".`;
+    return <p className="text-[11px] text-muted-foreground italic mt-1">{msg}</p>;
+  }
 
   if (!videos.length) return null;
 
