@@ -1,8 +1,7 @@
-// Preconfigured storage helpers for Manus WebDev templates
-// Uploads via Forge Server presigned URL to S3 (PUT direct).
-// Downloads return /manus-storage/{key} paths served via 307 redirect.
-// Local fallback: khi BUILT_IN_FORGE_API_URL không được set,
-// lưu file vào server/uploads/ và serve qua /uploads/*.
+// Storage helpers — ưu tiên: Supabase Storage > Forge > Local disk
+// Supabase: set SUPABASE_URL + SUPABASE_SERVICE_KEY + SUPABASE_BUCKET
+// Forge: set BUILT_IN_FORGE_API_URL + BUILT_IN_FORGE_API_KEY
+// Local fallback: lưu vào server/uploads/, serve qua /uploads/*
 
 import { writeFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
@@ -16,6 +15,39 @@ function storagePutLocal(relKey: string, data: Buffer | Uint8Array | string): { 
   mkdirSync(dirname(filePath), { recursive: true });
   writeFileSync(filePath, typeof data === "string" ? Buffer.from(data) : Buffer.from(data as Uint8Array));
   return { key, url: `/uploads/${key}` };
+}
+
+function isSupabaseConfigured() {
+  return !!(ENV.supabaseUrl && ENV.supabaseServiceKey);
+}
+
+async function storagePutSupabase(
+  relKey: string,
+  data: Buffer | Uint8Array | string,
+  contentType: string,
+): Promise<{ key: string; url: string }> {
+  const key = appendHashSuffix(normalizeKey(relKey));
+  const bucket = ENV.supabaseBucket;
+  const body = typeof data === "string" ? Buffer.from(data) : Buffer.from(data as Uint8Array);
+  const url = `${ENV.supabaseUrl}/storage/v1/object/${bucket}/${key}`;
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ENV.supabaseServiceKey}`,
+      "Content-Type": contentType,
+      "x-upsert": "true",
+    },
+    body,
+  });
+
+  if (!resp.ok) {
+    const msg = await resp.text().catch(() => resp.statusText);
+    throw new Error(`Supabase Storage upload failed (${resp.status}): ${msg}`);
+  }
+
+  const publicUrl = `${ENV.supabaseUrl}/storage/v1/object/public/${bucket}/${key}`;
+  return { key, url: publicUrl };
 }
 
 function getForgeConfig() {
@@ -47,6 +79,10 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
+  if (isSupabaseConfigured()) {
+    return storagePutSupabase(relKey, data, contentType);
+  }
+
   if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
     return storagePutLocal(relKey, data);
   }
