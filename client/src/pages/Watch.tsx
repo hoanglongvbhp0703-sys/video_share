@@ -39,6 +39,7 @@ export default function Watch() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const isSubmittingRef = useRef(false);
 
   const { data: video, isLoading: videoLoading } = trpc.videos.getById.useQuery(
     { id: videoId },
@@ -163,7 +164,9 @@ export default function Watch() {
   useEffect(() => {
     if (!showEmojiPicker) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+      // composedPath() xử lý đúng Shadow DOM của emoji-mart
+      const path = e.composedPath();
+      if (pickerRef.current && !path.includes(pickerRef.current)) {
         setShowEmojiPicker(false);
       }
     };
@@ -181,18 +184,24 @@ export default function Watch() {
     const end = ta.selectionEnd ?? commentText.length;
     const newText = commentText.slice(0, start) + emoji.native + commentText.slice(end);
     setCommentText(newText);
+    // Khôi phục cursor sau khi React re-render cập nhật value
     requestAnimationFrame(() => {
       const pos = start + emoji.native.length;
       ta.selectionStart = ta.selectionEnd = pos;
-      ta.focus();
     });
   };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
+    // Guard chặn double-submit khi user click nhanh trước khi React kịp disable button
+    if (isSubmittingRef.current) return;
     if (!isAuthenticated) { toast.error(t("watch.commentLoginError")); return; }
     if (!commentText.trim()) { toast.error(t("watch.commentEmptyError")); return; }
-    createCommentMutation.mutate({ videoId, content: commentText });
+    isSubmittingRef.current = true;
+    createCommentMutation.mutate(
+      { videoId, content: commentText },
+      { onSettled: () => { isSubmittingRef.current = false; } }
+    );
     setCommentText("");
     setShowEmojiPicker(false);
   };
