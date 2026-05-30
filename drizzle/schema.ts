@@ -283,6 +283,7 @@ export const livestreams = pgTable(
     status: varchar("status", { length: 10 }).$type<"live" | "ended">().default("live").notNull(),
     viewerCount: integer("viewerCount").default(0).notNull(),
     thumbnailUrl: text("thumbnailUrl"),
+    videoUrl: text("videoUrl"),
     startedAt: timestamp("startedAt").defaultNow().notNull(),
     endedAt: timestamp("endedAt"),
   },

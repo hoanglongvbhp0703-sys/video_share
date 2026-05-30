@@ -277,6 +277,7 @@ CREATE TABLE livestreams (
   status VARCHAR(10) NOT NULL DEFAULT 'live' CHECK (status IN ('live', 'ended')),
   "viewerCount" INTEGER NOT NULL DEFAULT 0,
   "thumbnailUrl" TEXT,
+  "videoUrl" TEXT,
   "startedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
   "endedAt" TIMESTAMP
 );

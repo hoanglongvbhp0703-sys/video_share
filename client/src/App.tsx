@@ -30,6 +30,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import GoLive from "./pages/GoLive";
 import LiveWatch from "./pages/LiveWatch";
+import Replay from "./pages/Replay";
 import { useAuth } from "./_core/hooks/useAuth";
 
 function RootPage() {
@@ -74,6 +75,7 @@ function Router() {
       <Route path={"/admin/reports"} component={AdminReports} />
       <Route path={"/go-live"} component={GoLive} />
       <Route path={"/live/:channelId"} component={LiveWatch} />
+      <Route path={"/replay/:id"} component={Replay} />
       <Route path={"/help"} component={Help} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

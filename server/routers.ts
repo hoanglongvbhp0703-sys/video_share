@@ -72,6 +72,8 @@ import {
   updateLivestreamViewerCount,
   getEndedLivestreamsByChannel,
   deleteLivestream,
+  saveLivestreamRecording,
+  getLivestreamById,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -684,6 +686,20 @@ export const appRouter = router({
         await deleteLivestream(input.id, channel.id);
         return { success: true };
       }),
+
+    saveRecording: protectedProcedure
+      .input(z.object({ id: z.number(), videoUrl: z.string().url() }))
+      .mutation(async ({ input, ctx }) => {
+        const channel = await getOrCreateChannel(ctx.user.id, ctx.user.name || "User");
+        const stream = await getLivestreamById(input.id);
+        if (!stream || stream.channelId !== channel.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await saveLivestreamRecording(input.id, input.videoUrl);
+        return { success: true };
+      }),
+
+    getById: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(({ input }) => getLivestreamById(input.id)),
   }),
 
   ai: router({

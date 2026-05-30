@@ -149,6 +149,10 @@ async function run() {
       name: 'passwordResets userId index',
       sql: `CREATE INDEX IF NOT EXISTS "passwordResets_userId_idx" ON "passwordResets" ("userId")`,
     },
+    {
+      name: 'livestreams.videoUrl column',
+      sql: `ALTER TABLE livestreams ADD COLUMN IF NOT EXISTS "videoUrl" TEXT`,
+    },
   ];
 
   let ok = 0;

@@ -421,7 +421,11 @@ export default function Channel() {
                       <div key={stream.id} className="flex flex-col gap-2 group">
                         <div
                           className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted cursor-pointer"
-                          onClick={() => navigate(`/live/${activeChannelId}`)}
+                          onClick={() =>
+                            stream.videoUrl
+                              ? navigate(`/replay/${stream.id}`)
+                              : navigate(`/live/${activeChannelId}`)
+                          }
                         >
                           {stream.thumbnailUrl ? (
                             <img src={stream.thumbnailUrl} alt={stream.title ?? ""} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -430,8 +434,8 @@ export default function Channel() {
                               <Tv className="w-10 h-10 text-muted-foreground/40" />
                             </div>
                           )}
-                          <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-                            {t("channel.aired")}
+                          <span className={`absolute bottom-2 left-2 text-white text-xs px-2 py-0.5 rounded ${stream.videoUrl ? "bg-primary/90" : "bg-black/70"}`}>
+                            {stream.videoUrl ? t("channel.replayAvailable") : t("channel.aired")}
                           </span>
                           {durationStr && (
                             <span className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">

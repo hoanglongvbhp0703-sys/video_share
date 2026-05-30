@@ -1111,6 +1111,7 @@ const LIVESTREAM_SELECT = {
   status: livestreams.status,
   viewerCount: livestreams.viewerCount,
   thumbnailUrl: livestreams.thumbnailUrl,
+  videoUrl: livestreams.videoUrl,
   startedAt: livestreams.startedAt,
   endedAt: livestreams.endedAt,
   channelName: channels.name,
@@ -1183,6 +1184,24 @@ export async function updateLivestreamViewerCount(id: number, count: number) {
   const db = await getDb();
   if (!db) return;
   await db.update(livestreams).set({ viewerCount: count }).where(eq(livestreams.id, id));
+}
+
+export async function saveLivestreamRecording(id: number, videoUrl: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(livestreams).set({ videoUrl }).where(eq(livestreams.id, id));
+}
+
+export async function getLivestreamById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select(LIVESTREAM_SELECT)
+    .from(livestreams)
+    .leftJoin(channels, eq(livestreams.channelId, channels.id))
+    .where(eq(livestreams.id, id))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function deleteLivestream(id: number, channelId: number) {

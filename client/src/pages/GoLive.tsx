@@ -6,7 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Video, Users, Send, Square, Radio } from "lucide-react";
+import { Video, Users, Send, Square, Radio, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const ICE_SERVERS = [
@@ -27,6 +27,21 @@ function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 4000): Promise<vo
   });
 }
 
+async function uploadBlob(blob: Blob, key: string): Promise<string> {
+  const mimeType = blob.type || "video/webm";
+  const params = new URLSearchParams({ key, mimeType });
+  const resp = await fetch(`/api/upload-file?${params}`, {
+    method: "POST",
+    headers: { "Content-Type": mimeType },
+    body: blob,
+  });
+  if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+  const data = await resp.json();
+  return data.url as string;
+}
+
+type UploadState = "idle" | "uploading" | "done" | "error";
+
 export default function GoLive() {
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
@@ -40,18 +55,23 @@ export default function GoLive() {
   const [chats, setChats] = useState<Array<{ id: number; userName: string; message: string }>>([]);
   const [lastChatId, setLastChatId] = useState(0);
   const [lastSignalId, setLastSignalId] = useState(0);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const localStream = useRef<MediaStream | null>(null);
   const peers = useRef(new Map<number, RTCPeerConnection>());
   const processedSignals = useRef(new Set<number>());
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const recordedChunks = useRef<Blob[]>([]);
+  const savedLivestreamId = useRef<number | null>(null);
 
   const startMutation = trpc.livestreams.start.useMutation();
   const endMutation = trpc.livestreams.end.useMutation();
   const sendAnswerMutation = trpc.livestreams.sendStreamerAnswer.useMutation();
   const sendChatMutation = trpc.livestreams.sendChat.useMutation();
   const updateCountMutation = trpc.livestreams.updateViewerCount.useMutation();
+  const saveRecordingMutation = trpc.livestreams.saveRecording.useMutation();
 
   const { data: signals } = trpc.livestreams.getStreamerSignals.useQuery(
     { livestreamId: livestreamId ?? 0, afterId: lastSignalId },
@@ -130,6 +150,58 @@ export default function GoLive() {
     });
   };
 
+  const startRecording = (stream: MediaStream) => {
+    recordedChunks.current = [];
+    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+      ? "video/webm;codecs=vp9,opus"
+      : MediaRecorder.isTypeSupported("video/webm")
+      ? "video/webm"
+      : "video/mp4";
+
+    try {
+      const mr = new MediaRecorder(stream, { mimeType });
+      mr.ondataavailable = e => {
+        if (e.data.size > 0) recordedChunks.current.push(e.data);
+      };
+      mr.start(5000); // chunk mỗi 5 giây
+      mediaRecorder.current = mr;
+    } catch (err) {
+      console.warn("MediaRecorder không khởi động được:", err);
+    }
+  };
+
+  const stopRecordingAndUpload = async (id: number) => {
+    const mr = mediaRecorder.current;
+    if (!mr || mr.state === "inactive") return;
+
+    setUploadState("uploading");
+    await new Promise<void>(resolve => {
+      mr.onstop = () => resolve();
+      mr.stop();
+    });
+    mediaRecorder.current = null;
+
+    if (recordedChunks.current.length === 0) {
+      setUploadState("idle");
+      return;
+    }
+
+    try {
+      const mimeType = recordedChunks.current[0].type || "video/webm";
+      const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+      const blob = new Blob(recordedChunks.current, { type: mimeType });
+      const key = `recordings/livestream-${id}-${Date.now()}.${ext}`;
+      const url = await uploadBlob(blob, key);
+      await saveRecordingMutation.mutateAsync({ id, videoUrl: url });
+      setUploadState("done");
+      toast.success(t("golive.recordingSaved"));
+    } catch (err) {
+      console.error("Lưu recording thất bại:", err);
+      setUploadState("error");
+      toast.error(t("golive.recordingError"));
+    }
+  };
+
   const handleStart = async () => {
     if (!title.trim()) { toast.error(t("golive.titleRequired")); return; }
     try {
@@ -141,7 +213,10 @@ export default function GoLive() {
       }
       const result = await startMutation.mutateAsync({ title: title.trim() });
       setLivestreamId(result.id);
+      savedLivestreamId.current = result.id;
+      startRecording(stream);
       setIsLive(true);
+      setUploadState("idle");
       toast.success(t("golive.startedLive"));
     } catch (err: any) {
       toast.error(
@@ -158,7 +233,8 @@ export default function GoLive() {
     localStream.current?.getTracks().forEach(t => t.stop());
     localStream.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
-    if (livestreamId) await endMutation.mutateAsync({ id: livestreamId });
+    const id = savedLivestreamId.current ?? livestreamId;
+    if (id) await endMutation.mutateAsync({ id });
     setIsLive(false);
     setLivestreamId(null);
     setViewerCount(0);
@@ -167,6 +243,7 @@ export default function GoLive() {
     setLastSignalId(0);
     processedSignals.current.clear();
     toast.success(t("golive.endedLive"));
+    if (id) await stopRecordingAndUpload(id);
   };
 
   const handleSendChat = async () => {
@@ -202,6 +279,18 @@ export default function GoLive() {
             </span>
           )}
         </div>
+
+        {uploadState === "uploading" && (
+          <div className="mb-4 flex items-center gap-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-lg px-4 py-3 text-sm">
+            <Upload className="w-4 h-4 animate-bounce flex-shrink-0" />
+            {t("golive.recordingUploading")}
+          </div>
+        )}
+        {uploadState === "done" && (
+          <div className="mb-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 rounded-lg px-4 py-3 text-sm">
+            {t("golive.recordingSaved")}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
