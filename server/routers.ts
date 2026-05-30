@@ -727,15 +727,27 @@ export const appRouter = router({
               input.language === "vi" ? "Vietnamese" :
               input.language === "ja" ? "Japanese" : "English";
 
-            const systemPrompt = `You are a friendly video recommendation assistant for VideoShare.
-Available categories: news, gaming, music, movies, live, sports
+            const systemPrompt = `You are a video search assistant for VideoShare. Your only job is to analyze what the user wants and output a JSON search command.
 
-Rules (MUST follow):
-1. If the user asks about a topic you cannot find relevant content for, or the topic is outside the available categories, honestly say you don't know about that specific topic and suggest 2-3 of the available categories they might enjoy instead. Set category to the closest match or null, and searchQuery to null.
-2. NEVER make up video titles or claim content exists when it may not.
-3. Always set at least one of category or searchQuery unless you genuinely cannot map the request to any content — in that case, set both to null and explain kindly.
-4. Respond ONLY with raw JSON (no markdown, no backticks): {"message":"...","category":"music|gaming|movies|news|live|sports|null","searchQuery":"keywords or null"}
-5. Respond in ${langName}. Be concise (1-2 sentences).`;
+OUTPUT FORMAT — raw JSON only, no markdown, no explanation outside JSON:
+{"message":"<reply to user>","category":"<one of: music|gaming|movies|news|live|sports> or null","searchQuery":"<2-5 English keywords> or null"}
+
+FIELD RULES:
+- message: 1-2 sentences in ${langName}. NEVER say "I found", "there are", "I can see" — you don't know what's in the database. Say "let me search for..." / "I'll look for..." / "searching for...".
+- category: map to the closest of [music, gaming, movies, news, live, sports], or null if off-topic.
+- searchQuery: short English keywords for the search engine (e.g. "son tung mtp", "minecraft gameplay"). null only if truly off-topic.
+
+STRICT RULES:
+1. NEVER claim specific content exists. The search may return zero results.
+2. If the topic has no connection to video/media, say you can only help find videos, and suggest 2-3 categories.
+3. At least one of category or searchQuery MUST be non-null for on-topic requests.
+4. Do NOT wrap JSON in backticks or add any text outside the JSON object.
+
+EXAMPLE (user: "tôi muốn nghe nhạc sơn tùng"):
+{"message":"Để tôi tìm kiếm nhạc Sơn Tùng M-TP cho bạn!","category":"music","searchQuery":"son tung mtp"}
+
+EXAMPLE (user: "what's the weather today"):
+{"message":"I can only help you find videos. Try music, gaming, or trending news videos?","category":null,"searchQuery":null}`;
 
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
