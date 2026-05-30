@@ -44,11 +44,28 @@ function formatDuration(seconds: number | null | undefined): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
+function useResumeProgress(videoId: number, duration: number | null | undefined): number {
+  const [pct] = useState<number>(() => {
+    if (!duration || duration <= 0) return 0;
+    try {
+      const raw = localStorage.getItem(`vs_resume_${videoId}`);
+      if (!raw) return 0;
+      const { position, timestamp } = JSON.parse(raw) as { position: number; timestamp: number };
+      if (Date.now() - timestamp >= 86400000 || position <= 0) return 0;
+      return Math.min(100, (position / duration) * 100);
+    } catch {
+      return 0;
+    }
+  });
+  return pct;
+}
+
 export default function VideoCard({ video }: VideoCardProps) {
   const [, navigate] = useLocation();
   const { t } = useTranslation();
   const dateLocale = useDateLocale();
   const [saveOpen, setSaveOpen] = useState(false);
+  const progressPct = useResumeProgress(video.id, video.duration);
 
   const handleClick = () => {
     navigate(`/watch/${video.id}`);
@@ -77,6 +94,13 @@ export default function VideoCard({ video }: VideoCardProps) {
         {video.duration && (
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {formatDuration(video.duration)}
+          </div>
+        )}
+
+        {/* Watch progress bar */}
+        {progressPct >= 1 && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/30">
+            <div className="h-full bg-red-500" style={{ width: `${progressPct}%` }} />
           </div>
         )}
 
