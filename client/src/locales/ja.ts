@@ -216,6 +216,8 @@ const ja = {
     commentSuccess: "コメントを追加しました",
     commentError: "コメントの追加に失敗しました",
     likeError: "操作できません",
+    linkCopied: "リンクをコピーしました",
+    resumeFrom: "{{time}} から再生",
   },
   channel: {
     subscribers: "人のチャンネル登録者",

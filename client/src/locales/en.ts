@@ -216,6 +216,8 @@ const en = {
     commentSuccess: "Comment added",
     commentError: "Failed to add comment",
     likeError: "Cannot perform action",
+    linkCopied: "Link copied to clipboard",
+    resumeFrom: "Resuming from {{time}}",
   },
   channel: {
     subscribers: "subscribers",

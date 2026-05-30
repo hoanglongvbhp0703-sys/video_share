@@ -37,9 +37,34 @@ export default function Watch() {
   const [commentText, setCommentText] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  // Read resume position synchronously so VideoPlayer gets the correct initialTime on first render
+  const [resumeTime] = useState<number>(() => {
+    if (!videoId) return 0;
+    try {
+      const raw = localStorage.getItem(`vs_resume_${videoId}`);
+      if (!raw) return 0;
+      const { position, timestamp } = JSON.parse(raw) as { position: number; timestamp: number };
+      if (Date.now() - timestamp < 24 * 60 * 60 * 1000 && position > 10) return position;
+      localStorage.removeItem(`vs_resume_${videoId}`);
+      return 0;
+    } catch {
+      return 0;
+    }
+  });
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const isSubmittingRef = useRef(false);
+  const savePositionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentTimeRef = useRef<number>(0);
+
+  const RESUME_KEY = `vs_resume_${videoId}`;
+
+  function formatTime(seconds: number) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
 
   const { data: video, isLoading: videoLoading } = trpc.videos.getById.useQuery(
     { id: videoId },
@@ -161,6 +186,29 @@ export default function Watch() {
     }
   }, [videoId]);
 
+  // Show toast once if resuming from a saved position
+  useEffect(() => {
+    if (resumeTime > 0) {
+      toast.info(t("watch.resumeFrom", { time: formatTime(resumeTime) }), { duration: 4000 });
+    }
+  }, []);
+
+  // Save position every 10 seconds
+  useEffect(() => {
+    if (!videoId) return;
+    savePositionTimerRef.current = setInterval(() => {
+      const pos = currentTimeRef.current;
+      const duration = video?.duration ?? 0;
+      // Skip saving if watched less than 10s or already near the end (>95%)
+      if (pos < 10 || (duration > 0 && pos >= duration * 0.95)) return;
+      localStorage.setItem(RESUME_KEY, JSON.stringify({ position: pos, timestamp: Date.now() }));
+    }, 10000);
+
+    return () => {
+      if (savePositionTimerRef.current) clearInterval(savePositionTimerRef.current);
+    };
+  }, [videoId, video?.duration]);
+
   useEffect(() => {
     if (!showEmojiPicker) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -204,6 +252,28 @@ export default function Watch() {
     );
     setCommentText("");
     setShowEmojiPicker(false);
+  };
+
+  const handleTimeUpdate = (currentTime: number) => {
+    currentTimeRef.current = currentTime;
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: video?.title ?? "", url });
+      } catch {
+        // User cancelled — no-op
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success(t("watch.linkCopied"));
+      } catch {
+        toast.error(url);
+      }
+    }
   };
 
   const handleToggleLike = (type: "like" | "dislike") => {
@@ -251,6 +321,8 @@ export default function Watch() {
           src={video.videoUrl || ""}
           poster={video.thumbnailUrl || undefined}
           title={video.title}
+          initialTime={resumeTime}
+          onTimeUpdate={handleTimeUpdate}
         />
         <div className="mb-6" />
 
@@ -310,7 +382,10 @@ export default function Watch() {
                 </button>
               </div>
 
-              <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-full transition-colors">
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
                 <Share2 className="w-5 h-5" />
                 <span className="text-sm">{t("watch.share")}</span>
               </button>

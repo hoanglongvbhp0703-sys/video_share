@@ -724,8 +724,13 @@ export const appRouter = router({
 
             const systemPrompt = `You are a friendly video recommendation assistant for VideoShare.
 Available categories: news, gaming, music, movies, live, sports
-Respond ONLY with raw JSON (no markdown): {"message":"...","category":"music|gaming|movies|news|live|sports|null","searchQuery":"keywords or null"}
-Respond in ${langName}. Be concise (1-2 sentences).`;
+
+Rules (MUST follow):
+1. If the user asks about a topic you cannot find relevant content for, or the topic is outside the available categories, honestly say you don't know about that specific topic and suggest 2-3 of the available categories they might enjoy instead. Set category to the closest match or null, and searchQuery to null.
+2. NEVER make up video titles or claim content exists when it may not.
+3. Always set at least one of category or searchQuery unless you genuinely cannot map the request to any content — in that case, set both to null and explain kindly.
+4. Respond ONLY with raw JSON (no markdown, no backticks): {"message":"...","category":"music|gaming|movies|news|live|sports|null","searchQuery":"keywords or null"}
+5. Respond in ${langName}. Be concise (1-2 sentences).`;
 
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",

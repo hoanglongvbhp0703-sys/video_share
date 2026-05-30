@@ -216,6 +216,8 @@ const vi = {
     commentSuccess: "Bình luận đã được thêm",
     commentError: "Lỗi khi thêm bình luận",
     likeError: "Không thể thực hiện thao tác",
+    linkCopied: "Đã sao chép link vào clipboard",
+    resumeFrom: "Tiếp tục xem từ {{time}}",
   },
   channel: {
     subscribers: "người đăng ký",

@@ -627,8 +627,9 @@ export async function getWatchHistoryWithVideos(userId: number, limit: number = 
   const db = await getDb();
   if (!db) return [];
 
-  return db
-    .select({
+  // DISTINCT ON keeps only the latest row per video for this user
+  const deduped = await db
+    .selectDistinctOn([watchHistory.videoId], {
       id: watchHistory.id,
       watchedAt: watchHistory.watchedAt,
       watchDuration: watchHistory.watchDuration,
@@ -642,9 +643,12 @@ export async function getWatchHistoryWithVideos(userId: number, limit: number = 
     .from(watchHistory)
     .innerJoin(videos, eq(watchHistory.videoId, videos.id))
     .where(eq(watchHistory.userId, userId))
-    .orderBy(desc(watchHistory.watchedAt))
-    .limit(limit)
-    .offset(offset);
+    .orderBy(watchHistory.videoId, desc(watchHistory.watchedAt));
+
+  // Re-sort by most recently watched, then paginate
+  return deduped
+    .sort((a, b) => new Date(b.watchedAt).getTime() - new Date(a.watchedAt).getTime())
+    .slice(offset, offset + limit);
 }
 
 export async function getTrendingVideos(limit: number = 20, offset: number = 0) {

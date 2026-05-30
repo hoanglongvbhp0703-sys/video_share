@@ -6,9 +6,11 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   title?: string;
+  initialTime?: number;
+  onTimeUpdate?: (currentTime: number) => void;
 }
 
-export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
+export default function VideoPlayer({ src, poster, title, initialTime, onTimeUpdate }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +28,9 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
 
     const handleCanPlay = () => {
       setIsLoading(false);
+      if (initialTime && initialTime > 0) {
+        video.currentTime = initialTime;
+      }
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
@@ -33,6 +38,10 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
           video.play().catch(() => {});
         });
       }
+    };
+
+    const handleTimeUpdate = () => {
+      if (onTimeUpdate) onTimeUpdate(video.currentTime);
     };
 
     const handleError = () => {
@@ -48,6 +57,7 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
       video.addEventListener("canplay", handleCanPlay);
       video.addEventListener("error", handleError);
       video.addEventListener("loadstart", handleLoadStart);
+      video.addEventListener("timeupdate", handleTimeUpdate);
     }
 
     return () => {
@@ -55,9 +65,19 @@ export default function VideoPlayer({ src, poster, title }: VideoPlayerProps) {
         video.removeEventListener("canplay", handleCanPlay);
         video.removeEventListener("error", handleError);
         video.removeEventListener("loadstart", handleLoadStart);
+        video.removeEventListener("timeupdate", handleTimeUpdate);
       }
     };
   }, [src, isValidSrc]);
+
+  // If initialTime arrives after the video is already in a ready state, seek immediately
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !initialTime || initialTime <= 0) return;
+    if (video.readyState >= 2) {
+      video.currentTime = initialTime;
+    }
+  }, [initialTime]);
 
   return (
     <div className="w-full bg-black rounded-lg overflow-hidden aspect-video relative">
