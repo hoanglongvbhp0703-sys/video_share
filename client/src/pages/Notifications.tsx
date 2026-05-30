@@ -30,14 +30,28 @@ export default function Notifications() {
   );
 
   const markAllAsRead = trpc.notifications.markAllAsRead.useMutation({
-    onSuccess: () => {
+    onMutate: () => {
+      utils.notifications.getUnreadCount.setData(undefined, 0);
+      utils.notifications.list.setData(
+        { limit: 50, offset: 0 },
+        (old) => old?.map((n) => ({ ...n, isRead: true }))
+      );
+    },
+    onSettled: () => {
       utils.notifications.list.invalidate();
       utils.notifications.getUnreadCount.invalidate();
     },
   });
 
   const markAsRead = trpc.notifications.markAsRead.useMutation({
-    onSuccess: () => {
+    onMutate: ({ id }) => {
+      utils.notifications.getUnreadCount.setData(undefined, (old) => Math.max(0, (old ?? 1) - 1));
+      utils.notifications.list.setData(
+        { limit: 50, offset: 0 },
+        (old) => old?.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      );
+    },
+    onSettled: () => {
       utils.notifications.list.invalidate();
       utils.notifications.getUnreadCount.invalidate();
     },

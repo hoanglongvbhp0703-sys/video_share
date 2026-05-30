@@ -33,7 +33,6 @@ export default function Watch() {
   const videoId = parseInt(id || "0");
 
   const [commentText, setCommentText] = useState("");
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const { data: video, isLoading: videoLoading } = trpc.videos.getById.useQuery(
@@ -84,17 +83,79 @@ export default function Watch() {
 
   const incrementViewMutation = trpc.videos.incrementView.useMutation();
   const recordHistoryMutation = trpc.watchHistory.record.useMutation();
-  const createCommentMutation = trpc.comments.create.useMutation();
   const utils = trpc.useUtils();
+
   const toggleLikeMutation = trpc.likes.toggle.useMutation({
-    onSuccess: () => {
-      refetchLike();
-      utils.videos.getById.invalidate({ id: videoId });
+    onMutate: async ({ videoId: vid, type }) => {
+      await utils.likes.getMyLike.cancel({ videoId: vid });
+      await utils.videos.getById.cancel({ id: vid });
+      const prevLike = utils.likes.getMyLike.getData({ videoId: vid });
+      const prevVideo = utils.videos.getById.getData({ id: vid });
+      const toggled = prevLike?.type === type;
+      utils.likes.getMyLike.setData({ videoId: vid }, toggled ? null : { type });
+      if (prevVideo) {
+        const v = { ...prevVideo };
+        if (prevLike?.type === "like") v.likeCount = Math.max(0, v.likeCount - 1);
+        if (prevLike?.type === "dislike") v.dislikeCount = Math.max(0, v.dislikeCount - 1);
+        if (!toggled && type === "like") v.likeCount += 1;
+        if (!toggled && type === "dislike") v.dislikeCount += 1;
+        utils.videos.getById.setData({ id: vid }, v);
+      }
+      return { prevLike, prevVideo };
     },
-    onError: (err) => toast.error(err.message || t("watch.likeError")),
+    onError: (err, { videoId: vid }, ctx) => {
+      if (ctx?.prevLike !== undefined) utils.likes.getMyLike.setData({ videoId: vid }, ctx.prevLike);
+      if (ctx?.prevVideo) utils.videos.getById.setData({ id: vid }, ctx.prevVideo);
+      toast.error(err.message || t("watch.likeError"));
+    },
+    onSettled: (_, __, { videoId: vid }) => {
+      utils.likes.getMyLike.invalidate({ videoId: vid });
+      utils.videos.getById.invalidate({ id: vid });
+    },
   });
+
   const toggleSubscriptionMutation = trpc.subscriptions.toggle.useMutation({
-    onSuccess: () => refetchSubscription(),
+    onMutate: async ({ channelId }) => {
+      await utils.subscriptions.isSubscribed.cancel({ channelId });
+      const prev = utils.subscriptions.isSubscribed.getData({ channelId });
+      utils.subscriptions.isSubscribed.setData({ channelId }, !prev);
+      return { prev };
+    },
+    onError: (_, { channelId }, ctx) => {
+      if (ctx?.prev !== undefined) utils.subscriptions.isSubscribed.setData({ channelId }, ctx.prev);
+    },
+    onSettled: (_, __, { channelId }) => {
+      utils.subscriptions.isSubscribed.invalidate({ channelId });
+      utils.subscriptions.getCount.invalidate({ channelId });
+    },
+  });
+
+  const createCommentMutation = trpc.comments.create.useMutation({
+    onMutate: async ({ videoId: vid, content }) => {
+      await utils.comments.getByVideoId.cancel({ videoId: vid, limit: 20, offset: 0 });
+      const prev = utils.comments.getByVideoId.getData({ videoId: vid, limit: 20, offset: 0 });
+      const optimistic = {
+        id: -Date.now(),
+        videoId: vid,
+        userId: user?.id ?? 0,
+        content,
+        createdAt: new Date(),
+        channelId: null,
+      } as any;
+      utils.comments.getByVideoId.setData(
+        { videoId: vid, limit: 20, offset: 0 },
+        (old) => (old ? [optimistic, ...old] : [optimistic])
+      );
+      return { prev };
+    },
+    onError: (_, { videoId: vid }, ctx) => {
+      if (ctx?.prev !== undefined)
+        utils.comments.getByVideoId.setData({ videoId: vid, limit: 20, offset: 0 }, ctx.prev);
+      toast.error(t("watch.commentError"));
+    },
+    onSettled: (_, __, { videoId: vid }) => {
+      utils.comments.getByVideoId.invalidate({ videoId: vid, limit: 20, offset: 0 });
+    },
   });
 
   useEffect(() => {
@@ -106,28 +167,12 @@ export default function Watch() {
     }
   }, [videoId]);
 
-  const handleAddComment = async (e: React.FormEvent) => {
+  const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAuthenticated) {
-      toast.error(t("watch.commentLoginError"));
-      return;
-    }
-    if (!commentText.trim()) {
-      toast.error(t("watch.commentEmptyError"));
-      return;
-    }
-
-    setIsSubmittingComment(true);
-    try {
-      await createCommentMutation.mutateAsync({ videoId, content: commentText });
-      setCommentText("");
-      await refetchComments();
-      toast.success(t("watch.commentSuccess"));
-    } catch {
-      toast.error(t("watch.commentError"));
-    } finally {
-      setIsSubmittingComment(false);
-    }
+    if (!isAuthenticated) { toast.error(t("watch.commentLoginError")); return; }
+    if (!commentText.trim()) { toast.error(t("watch.commentEmptyError")); return; }
+    createCommentMutation.mutate({ videoId, content: commentText });
+    setCommentText("");
   };
 
   const handleToggleLike = (type: "like" | "dislike") => {
@@ -139,19 +184,11 @@ export default function Watch() {
   };
 
   const handleToggleSubscription = () => {
-    if (!isAuthenticated) {
-      toast.error(t("watch.loginToSubscribe"));
-      return;
-    }
+    if (!isAuthenticated) { toast.error(t("watch.loginToSubscribe")); return; }
     if (!video?.channelId) return;
-    toggleSubscriptionMutation.mutate(
-      { channelId: video.channelId },
-      {
-        onSuccess: (subscribed) => {
-          toast.success(subscribed ? t("watch.subscribeSuccess") : t("watch.unsubscribeSuccess"));
-        },
-      }
-    );
+    const willSubscribe = !isSubscribed;
+    toggleSubscriptionMutation.mutate({ channelId: video.channelId });
+    toast.success(willSubscribe ? t("watch.subscribeSuccess") : t("watch.unsubscribeSuccess"));
   };
 
   if (videoLoading) {
@@ -297,10 +334,10 @@ export default function Watch() {
                     />
                   </div>
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setCommentText("")} disabled={isSubmittingComment}>
+                    <Button variant="outline" onClick={() => setCommentText("")}>
                       {t("watch.cancel")}
                     </Button>
-                    <Button disabled={!commentText.trim() || isSubmittingComment} type="submit">
+                    <Button disabled={!commentText.trim() || createCommentMutation.isPending} type="submit">
                       {t("watch.comment")}
                     </Button>
                   </div>

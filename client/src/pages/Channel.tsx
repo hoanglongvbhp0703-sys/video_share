@@ -68,7 +68,29 @@ export default function Channel() {
     { enabled: !!activeChannelId }
   );
 
-  const toggleSubscribeMutation = trpc.subscriptions.toggle.useMutation();
+  const toggleSubscribeMutation = trpc.subscriptions.toggle.useMutation({
+    onMutate: async ({ channelId }) => {
+      await utils.subscriptions.isSubscribed.cancel({ channelId });
+      await utils.subscriptions.getCount.cancel({ channelId });
+      const prevSubscribed = utils.subscriptions.isSubscribed.getData({ channelId });
+      const prevCount = utils.subscriptions.getCount.getData({ channelId });
+      utils.subscriptions.isSubscribed.setData({ channelId }, !prevSubscribed);
+      utils.subscriptions.getCount.setData({ channelId }, (old) =>
+        !prevSubscribed ? (old ?? 0) + 1 : Math.max(0, (old ?? 1) - 1)
+      );
+      return { prevSubscribed, prevCount };
+    },
+    onError: (_, { channelId }, ctx) => {
+      if (ctx?.prevSubscribed !== undefined)
+        utils.subscriptions.isSubscribed.setData({ channelId }, ctx.prevSubscribed);
+      if (ctx?.prevCount !== undefined)
+        utils.subscriptions.getCount.setData({ channelId }, ctx.prevCount);
+    },
+    onSettled: (_, __, { channelId }) => {
+      utils.subscriptions.isSubscribed.invalidate({ channelId });
+      utils.subscriptions.getCount.invalidate({ channelId });
+    },
+  });
   const deleteLivestreamMutation = trpc.livestreams.delete.useMutation({
     onSuccess: () => {
       utils.channels.getLivestreams.invalidate({ channelId: activeChannelId });
@@ -145,16 +167,9 @@ export default function Channel() {
   const handleToggleSubscribe = () => {
     if (!isAuthenticated) { toast.error(t("channel.loginError")); return; }
     if (!activeChannelId) return;
-    toggleSubscribeMutation.mutate(
-      { channelId: activeChannelId },
-      {
-        onSuccess: (result) => {
-          toast.success(result ? t("channel.subscribeSuccess") : t("channel.unsubscribeSuccess"));
-          utils.subscriptions.isSubscribed.invalidate({ channelId: activeChannelId });
-          utils.subscriptions.getCount.invalidate({ channelId: activeChannelId });
-        },
-      }
-    );
+    const willSubscribe = !isSubscribed;
+    toggleSubscribeMutation.mutate({ channelId: activeChannelId });
+    toast.success(willSubscribe ? t("channel.subscribeSuccess") : t("channel.unsubscribeSuccess"));
   };
 
   const displayChannel = channelId ? channel : myChannel;
