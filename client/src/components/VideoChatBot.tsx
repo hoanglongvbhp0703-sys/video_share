@@ -5,49 +5,24 @@ import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
+interface VideoResult {
+  id: number;
+  title: string;
+  thumbnailUrl?: string | null;
+  channelName?: string | null;
+  channelAvatarUrl?: string | null;
+  duration?: number | null;
+  viewCount: number;
+}
+
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  category?: string | null;
-  searchQuery?: string | null;
+  videos?: VideoResult[];
 }
 
-interface VideoResultsProps {
-  category?: string | null;
-  searchQuery?: string | null;
-}
-
-function VideoResults({ category, searchQuery }: VideoResultsProps) {
-  const { t, i18n } = useTranslation();
-  // Prioritize searchQuery — category alone returns unrelated results
-  const useSearch = !!searchQuery;
-
-  const { data: searchedVideos, isLoading: searchLoading } = trpc.videos.search.useQuery(
-    { query: searchQuery ?? "", limit: 4 },
-    { enabled: useSearch }
-  );
-
-  const { data: categoryVideos, isLoading: categoryLoading } = trpc.videos.getByCategory.useQuery(
-    { category: category ?? "", limit: 4 },
-    { enabled: !useSearch && !!category }
-  );
-
-  const isLoading = searchLoading || categoryLoading;
-  const videos = (useSearch ? searchedVideos : categoryVideos) ?? [];
-
-  if (isLoading) return null;
-
-  // searchQuery was specific but nothing matched in the DB
-  if (useSearch && videos.length === 0) {
-    const msg =
-      i18n.language === "vi" ? `Không tìm thấy video nào khớp với "${searchQuery}".` :
-      i18n.language === "ja" ? `「${searchQuery}」に一致する動画が見つかりませんでした。` :
-      `No videos found matching "${searchQuery}".`;
-    return <p className="text-[11px] text-muted-foreground italic mt-1">{msg}</p>;
-  }
-
+function VideoResults({ videos }: { videos: VideoResult[] }) {
   if (!videos.length) return null;
-
   return (
     <div className="mt-2 grid grid-cols-2 gap-1.5">
       {videos.map((v) => (
@@ -119,8 +94,7 @@ export default function VideoChatBot() {
         {
           role: "assistant",
           content: t("chatbot.greeting"),
-          category: null,
-          searchQuery: null,
+          videos: [],
         },
       ]);
     }
@@ -146,14 +120,13 @@ export default function VideoChatBot() {
         {
           role: "assistant",
           content: result.message,
-          category: result.category,
-          searchQuery: result.searchQuery,
+          videos: result.videos,
         },
       ]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: t("chatbot.error"), category: null, searchQuery: null },
+        { role: "assistant", content: t("chatbot.error"), videos: [] },
       ]);
     }
   };
@@ -210,12 +183,7 @@ export default function VideoChatBot() {
                     <div className="bg-muted rounded-2xl rounded-bl-sm px-3 py-2 text-sm text-foreground leading-relaxed">
                       {msg.content}
                     </div>
-                    {(msg.category || msg.searchQuery) && (
-                      <VideoResults
-                        category={msg.category}
-                        searchQuery={msg.searchQuery}
-                      />
-                    )}
+                    {msg.videos && <VideoResults videos={msg.videos} />}
                   </div>
                 ) : (
                   <div className="max-w-[80%] bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-sm leading-relaxed">

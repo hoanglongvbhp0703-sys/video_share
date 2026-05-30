@@ -81,72 +81,44 @@ import { eq } from "drizzle-orm";
 import { videos } from "../drizzle/schema";
 import { storagePut } from "./storage";
 
-type ChatResult = { message: string; category: string | null; searchQuery: string | null };
+type VideoResult = {
+  id: number;
+  title: string;
+  thumbnailUrl: string | null;
+  channelName: string | null;
+  channelAvatarUrl: string | null;
+  duration: number | null;
+  viewCount: number;
+};
 
-function keywordFallback(userMsg: string, language: string): ChatResult {
+type ChatResult = { message: string; videos: VideoResult[] };
+
+function fallbackMessage(userMsg: string, language: string, hasResults: boolean): string {
   const q = userMsg.toLowerCase();
+  const isVague = q.length < 4 || ["?", "gì", "gi", "what", "nào", "nao"].some(w => q.includes(w));
 
-  const RULES: Array<{ patterns: string[]; category: string; replies: Record<string, string> }> = [
-    {
-      category: "music",
-      patterns: ["nhạc", "nhac", "music", "âm nhạc", "am nhac", "mv", "ca sĩ", "ca si", "bài hát", "bai hat", "ost", "音楽", "歌"],
-      replies: { vi: "Tuyệt! Đây là những video âm nhạc hay nhất cho bạn 🎵", en: "Great choice! Here are some music videos for you 🎵", ja: "素晴らしい！音楽動画をご紹介します 🎵" },
-    },
-    {
-      category: "gaming",
-      patterns: ["game", "gaming", "trò chơi", "tro choi", "esport", "gameplay", "playthrough", "minecraft", "lol", "pubg", "ゲーム"],
-      replies: { vi: "Gaming it is! Xem ngay những video game hấp dẫn 🎮", en: "Let's game! Here are some gaming videos for you 🎮", ja: "ゲーム動画をどうぞ！ 🎮" },
-    },
-    {
-      category: "movies",
-      patterns: ["phim", "film", "movie", "điện ảnh", "dien anh", "series", "tập phim", "tap phim", "trailer", "映画", "ドラマ"],
-      replies: { vi: "Hay lắm! Đây là những video phim hot nhất 🎬", en: "Great! Here are the hottest movie videos for you 🎬", ja: "映画動画をご用意しました 🎬" },
-    },
-    {
-      category: "sports",
-      patterns: ["thể thao", "the thao", "sport", "bóng đá", "bong da", "football", "soccer", "tennis", "gym", "fitness", "スポーツ", "サッカー"],
-      replies: { vi: "Thể thao là số 1! Đây là những video thể thao hot 🏃", en: "Sports fan! Check out these sports videos 🏃", ja: "スポーツ動画をどうぞ！ 🏃" },
-    },
-    {
-      category: "news",
-      patterns: ["tin tức", "tin tuc", "news", "thời sự", "thoi su", "báo", "bao", "sự kiện", "su kien", "ニュース", "時事"],
-      replies: { vi: "Cập nhật ngay! Đây là những video tin tức mới nhất 📰", en: "Stay informed! Here are the latest news videos 📰", ja: "最新ニュース動画をどうぞ 📰" },
-    },
-    {
-      category: "live",
-      patterns: ["live", "trực tiếp", "truc tiep", "stream", "phát sóng", "phat song", "ライブ", "配信"],
-      replies: { vi: "Xem trực tiếp ngay! Đây là các buổi stream 📡", en: "Going live! Here are some livestream videos 📡", ja: "ライブ配信動画をどうぞ 📡" },
-    },
-  ];
-
-  for (const rule of RULES) {
-    if (rule.patterns.some(p => q.includes(p))) {
-      return {
-        message: rule.replies[language] ?? rule.replies["en"],
-        category: rule.category,
-        searchQuery: null,
-      };
-    }
-  }
-
-  // Không match category → dùng làm search query
-  const isQuestion = q.length < 3 || ["?", "gì", "gi", "what", "nào", "nao"].some(w => q.includes(w));
-  if (isQuestion || q.length < 4) {
-    const askAgain: Record<string, string> = {
-      vi: "Bạn muốn xem gì? Thử nhập: phim, nhạc, gaming, thể thao, tin tức hoặc live nhé! 😊",
-      en: "What would you like to watch? Try: movies, music, gaming, sports, news, or live! 😊",
-      ja: "何を見たいですか？映画、音楽、ゲーム、スポーツ、ニュース、ライブなど入力してみて！ 😊",
+  if (isVague) {
+    const ask: Record<string, string> = {
+      vi: "Bạn muốn xem gì? Thử nhập: phim, nhạc, gaming, thể thao, tin tức... 😊",
+      en: "What would you like to watch? Try: movies, music, gaming, sports, news... 😊",
+      ja: "何を見たいですか？映画、音楽、ゲームなど入力してみて！ 😊",
     };
-    return { message: askAgain[language] ?? askAgain["en"], category: null, searchQuery: null };
+    return ask[language] ?? ask["en"];
   }
-
-  // Dùng input làm keyword search
-  const searching: Record<string, string> = {
-    vi: `Tìm video về "${userMsg}" cho bạn nhé! 🔍`,
-    en: `Searching videos about "${userMsg}" for you! 🔍`,
-    ja: `「${userMsg}」の動画を検索します！ 🔍`,
+  if (!hasResults) {
+    const none: Record<string, string> = {
+      vi: `Không tìm thấy video nào phù hợp với "${userMsg}". Thử từ khóa khác nhé!`,
+      en: `No videos found matching "${userMsg}". Try a different keyword!`,
+      ja: `「${userMsg}」に一致する動画が見つかりませんでした。別のキーワードをお試しください。`,
+    };
+    return none[language] ?? none["en"];
+  }
+  const found: Record<string, string> = {
+    vi: `Đây là các video liên quan đến "${userMsg}" 🔍`,
+    en: `Here are videos related to "${userMsg}" 🔍`,
+    ja: `「${userMsg}」に関連する動画です 🔍`,
   };
-  return { message: searching[language] ?? searching["en"], category: null, searchQuery: userMsg };
+  return found[language] ?? found["en"];
 }
 
 export const appRouter = router({
@@ -716,70 +688,96 @@ export const appRouter = router({
         })).max(20),
         language: z.string().default("vi"),
       }))
-      .mutation(async ({ input }) => {
-        const apiKey = process.env.GROQ_API_KEY;
+      .mutation(async ({ input }): Promise<ChatResult> => {
         const lastUserMsg = [...input.messages].reverse().find(m => m.role === "user")?.content ?? "";
 
-        // Thử gọi Groq nếu có API key
-        if (apiKey) {
-          try {
-            const langName =
-              input.language === "vi" ? "Vietnamese" :
-              input.language === "ja" ? "Japanese" : "English";
+        // Step 1: search DB first — RAG candidates
+        const candidates = await searchVideos(lastUserMsg, 8);
+        const toResult = (v: (typeof candidates)[0]): VideoResult => ({
+          id: Number(v.id),
+          title: v.title,
+          thumbnailUrl: v.thumbnailUrl ?? null,
+          channelName: v.channelName ?? null,
+          channelAvatarUrl: v.channelAvatarUrl ?? null,
+          duration: v.duration ?? null,
+          viewCount: Number(v.viewCount),
+        });
 
-            const systemPrompt = `You are a video search assistant for VideoShare. Your only job is to analyze what the user wants and output a JSON search command.
+        const apiKey = process.env.GROQ_API_KEY;
 
-OUTPUT FORMAT — raw JSON only, no markdown, no explanation outside JSON:
-{"message":"<reply to user>","category":"<one of: music|gaming|movies|news|live|sports> or null","searchQuery":"<2-5 English keywords> or null"}
-
-FIELD RULES:
-- message: 1-2 sentences in ${langName}. NEVER say "I found", "there are", "I can see" — you don't know what's in the database. Say "let me search for..." / "I'll look for..." / "searching for...".
-- category: map to the closest of [music, gaming, movies, news, live, sports], or null if off-topic.
-- searchQuery: short English keywords for the search engine (e.g. "son tung mtp", "minecraft gameplay"). null only if truly off-topic.
-
-STRICT RULES:
-1. NEVER claim specific content exists. The search may return zero results.
-2. If the topic has no connection to video/media, say you can only help find videos, and suggest 2-3 categories.
-3. At least one of category or searchQuery MUST be non-null for on-topic requests.
-4. Do NOT wrap JSON in backticks or add any text outside the JSON object.
-
-EXAMPLE (user: "tôi muốn nghe nhạc sơn tùng"):
-{"message":"Để tôi tìm kiếm nhạc Sơn Tùng M-TP cho bạn!","category":"music","searchQuery":"son tung mtp"}
-
-EXAMPLE (user: "what's the weather today"):
-{"message":"I can only help you find videos. Try music, gaming, or trending news videos?","category":null,"searchQuery":null}`;
-
-            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-              body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
-                messages: [{ role: "system", content: systemPrompt }, ...input.messages],
-                response_format: { type: "json_object" },
-                temperature: 0.7,
-                max_tokens: 500,
-              }),
-            });
-
-            if (res.ok) {
-              const data = await res.json() as { choices: Array<{ message: { content: string } }> };
-              const raw = (data.choices[0]?.message?.content ?? "{}").replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-              const parsed = JSON.parse(raw) as { message?: string; category?: string | null; searchQuery?: string | null };
-              const validCategories = ["news", "gaming", "music", "movies", "live", "sports"];
-              return {
-                message: parsed.message ?? keywordFallback(lastUserMsg, input.language).message,
-                category: validCategories.includes(parsed.category ?? "") ? (parsed.category ?? null) : null,
-                searchQuery: parsed.searchQuery ?? null,
-              };
-            }
-            console.error("xAI API error:", res.status, await res.text());
-          } catch (e) {
-            console.error("xAI call failed, using keyword fallback:", e);
-          }
+        // Step 2: no API key → return top search results directly
+        if (!apiKey) {
+          const top = candidates.slice(0, 4);
+          return {
+            message: fallbackMessage(lastUserMsg, input.language, top.length > 0),
+            videos: top.map(toResult),
+          };
         }
 
-        // Fallback: keyword matching thông minh (không cần API key)
-        return keywordFallback(lastUserMsg, input.language);
+        // Step 3: RAG — pass candidates to Groq for reranking / relevance filtering
+        try {
+          const langName =
+            input.language === "vi" ? "Vietnamese" :
+            input.language === "ja" ? "Japanese" : "English";
+
+          const candidateList = candidates.length > 0
+            ? candidates.map((v, i) =>
+                `[${i + 1}] ID:${v.id} | "${v.title}" | channel: ${v.channelName ?? "?"} | category: ${v.category ?? "?"}`
+              ).join("\n")
+            : "(no results found in database)";
+
+          const systemPrompt = `You are a video recommendation assistant for VideoShare.
+
+A database search for the user's request returned these candidate videos:
+${candidateList}
+
+Your job: decide which of these videos truly match what the user wants.
+
+OUTPUT FORMAT (raw JSON only, no markdown):
+{"message":"<1-2 sentences in ${langName}>","videoIds":[<IDs of matching videos, max 4>]}
+
+RULES:
+1. Only use IDs from the candidate list above — never invent IDs.
+2. If NONE of the candidates genuinely match the user's request, return videoIds:[] and honestly say the content is not available.
+3. Do NOT pick videos just because they share a category — the title/channel must actually relate to the request.
+4. Respond in ${langName}.`;
+
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [{ role: "system", content: systemPrompt }, ...input.messages],
+              response_format: { type: "json_object" },
+              temperature: 0.2,
+              max_tokens: 300,
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json() as { choices: Array<{ message: { content: string } }> };
+            const raw = (data.choices[0]?.message?.content ?? "{}").replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+            const parsed = JSON.parse(raw) as { message?: string; videoIds?: unknown };
+            const selectedIds = Array.isArray(parsed.videoIds)
+              ? (parsed.videoIds as unknown[]).map(Number).filter(n => !isNaN(n))
+              : [];
+            const selected = candidates.filter(v => selectedIds.includes(Number(v.id))).slice(0, 4);
+            return {
+              message: parsed.message ?? fallbackMessage(lastUserMsg, input.language, selected.length > 0),
+              videos: selected.map(toResult),
+            };
+          }
+          console.error("Groq API error:", res.status, await res.text());
+        } catch (e) {
+          console.error("Groq RAG call failed:", e);
+        }
+
+        // Step 4: Groq failed → return raw search results
+        const top = candidates.slice(0, 4);
+        return {
+          message: fallbackMessage(lastUserMsg, input.language, top.length > 0),
+          videos: top.map(toResult),
+        };
       }),
   }),
 });
