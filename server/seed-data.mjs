@@ -358,12 +358,26 @@ async function seedDatabase() {
     }
     console.log(`✓ Đã tạo ${channelIds.length} channels`);
 
+    // Public domain sample videos (Google Cloud Storage) — cycle through for variety
+    const SAMPLE_VIDEOS = [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4",
+    ];
+
     // Seed videos
     console.log("🎬 Tạo videos...");
     const videoIds = [];
     for (let i = 0; i < videoData.length; i++) {
       const v = videoData[i];
-      const videoUrl = `/manus-storage/video-${i + 1}.mp4`;
+      const videoUrl = SAMPLE_VIDEOS[i % SAMPLE_VIDEOS.length];
       const createdAt = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
 
       const [result] = await sql`
