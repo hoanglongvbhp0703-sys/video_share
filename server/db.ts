@@ -474,10 +474,21 @@ export async function createComment(videoId: number, userId: number, content: st
 
   await db.insert(comments).values({ videoId, userId, content });
 
+  // JOIN channels để trả về channelId — khớp với shape của getCommentsByVideoId
   const created = await db
-    .select()
+    .select({
+      id: comments.id,
+      videoId: comments.videoId,
+      userId: comments.userId,
+      content: comments.content,
+      likeCount: comments.likeCount,
+      createdAt: comments.createdAt,
+      updatedAt: comments.updatedAt,
+      channelId: channels.id,
+    })
     .from(comments)
-    .where(eq(comments.videoId, videoId))
+    .leftJoin(channels, eq(channels.userId, comments.userId))
+    .where(and(eq(comments.videoId, videoId), eq(comments.userId, userId)))
     .orderBy(desc(comments.createdAt))
     .limit(1);
 
@@ -503,22 +514,31 @@ export async function toggleLike(videoId: number, userId: number, type: "like" |
   if (!db) throw new Error("Database not available");
 
   const existing = await getUserLikeOnVideo(videoId, userId);
+  let newType: "like" | "dislike" | null;
 
   if (existing) {
     if (existing.type === type) {
       // Xóa like/dislike — trigger tự giảm count
       await db.delete(likes).where(eq(likes.id, existing.id));
-      return null;
+      newType = null;
     } else {
       // Đổi type — trigger tự swap counts
       await db.update(likes).set({ type }).where(eq(likes.id, existing.id));
-      return type;
+      newType = type;
     }
   } else {
     // Thêm mới — trigger tự tăng count
     await db.insert(likes).values({ videoId, userId, type });
-    return type;
+    newType = type;
   }
+
+  // Lấy counts thực từ DB (trigger đã chạy xong trong cùng transaction)
+  const video = await getVideoById(videoId);
+  return {
+    type: newType,
+    likeCount: video?.likeCount ?? 0,
+    dislikeCount: video?.dislikeCount ?? 0,
+  };
 }
 
 // Subscription queries
@@ -542,19 +562,24 @@ export async function toggleSubscription(channelId: number, userId: number) {
   const channel = await getChannelById(channelId);
   if (!channel) throw new Error("Channel not found");
 
-  const isSubscribed = await isUserSubscribed(channelId, userId);
+  const subscribed = await isUserSubscribed(channelId, userId);
 
-  if (isSubscribed) {
+  if (subscribed) {
     // Hủy subscribe — trigger tự giảm subscriberCount
     await db
       .delete(subscriptions)
       .where(and(eq(subscriptions.channelId, channelId), eq(subscriptions.userId, userId)));
-    return false;
   } else {
     // Subscribe — trigger tự tăng subscriberCount
     await db.insert(subscriptions).values({ channelId, userId });
-    return true;
   }
+
+  // Lấy subscriberCount thực từ DB (trigger đã chạy xong)
+  const updated = await getChannelById(channelId);
+  return {
+    isSubscribed: !subscribed,
+    subscriberCount: updated?.subscriberCount ?? 0,
+  };
 }
 
 export async function getChannelSubscriberCount(channelId: number) {
@@ -830,14 +855,17 @@ export async function getUnreadNotificationCount(userId: number): Promise<number
 
 export async function markNotificationAsRead(id: number, userId: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) return { unreadCount: 0 };
   await db.update(notifications).set({ isRead: true }).where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+  const unreadCount = await getUnreadNotificationCount(userId);
+  return { unreadCount };
 }
 
 export async function markAllNotificationsAsRead(userId: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) return { unreadCount: 0 };
   await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
+  return { unreadCount: 0 };
 }
 
 // ─── Report queries ──────────────────────────────────────────────────────────

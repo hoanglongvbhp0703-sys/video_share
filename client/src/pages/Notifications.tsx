@@ -31,11 +31,13 @@ export default function Notifications() {
 
   const markAllAsRead = trpc.notifications.markAllAsRead.useMutation({
     onMutate: () => {
-      utils.notifications.getUnreadCount.setData(undefined, 0);
       utils.notifications.list.setData(
         { limit: 50, offset: 0 },
         (old) => old?.map((n) => ({ ...n, isRead: true }))
       );
+    },
+    onSuccess: (data) => {
+      utils.notifications.getUnreadCount.setData(undefined, data.unreadCount);
     },
     onSettled: () => {
       utils.notifications.list.invalidate();
@@ -45,11 +47,13 @@ export default function Notifications() {
 
   const markAsRead = trpc.notifications.markAsRead.useMutation({
     onMutate: ({ id }) => {
-      utils.notifications.getUnreadCount.setData(undefined, (old) => Math.max(0, (old ?? 1) - 1));
       utils.notifications.list.setData(
         { limit: 50, offset: 0 },
         (old) => old?.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
+    },
+    onSuccess: (data) => {
+      utils.notifications.getUnreadCount.setData(undefined, data.unreadCount);
     },
     onSettled: () => {
       utils.notifications.list.invalidate();

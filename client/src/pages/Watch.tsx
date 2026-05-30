@@ -88,29 +88,24 @@ export default function Watch() {
   const toggleLikeMutation = trpc.likes.toggle.useMutation({
     onMutate: async ({ videoId: vid, type }) => {
       await utils.likes.getMyLike.cancel({ videoId: vid });
-      await utils.videos.getById.cancel({ id: vid });
       const prevLike = utils.likes.getMyLike.getData({ videoId: vid });
-      const prevVideo = utils.videos.getById.getData({ id: vid });
       const toggled = prevLike?.type === type;
+      // Chỉ flip trạng thái like/dislike — đây là deterministic, không phải hardcode count
       utils.likes.getMyLike.setData({ videoId: vid }, toggled ? null : { type });
-      if (prevVideo) {
-        const v = { ...prevVideo };
-        if (prevLike?.type === "like") v.likeCount = Math.max(0, v.likeCount - 1);
-        if (prevLike?.type === "dislike") v.dislikeCount = Math.max(0, v.dislikeCount - 1);
-        if (!toggled && type === "like") v.likeCount += 1;
-        if (!toggled && type === "dislike") v.dislikeCount += 1;
-        utils.videos.getById.setData({ id: vid }, v);
-      }
-      return { prevLike, prevVideo };
+      return { prevLike };
+    },
+    onSuccess: (data, { videoId: vid }) => {
+      // Cập nhật count bằng giá trị thực từ server (không hardcode ±1)
+      utils.videos.getById.setData({ id: vid }, (old) =>
+        old ? { ...old, likeCount: data.likeCount, dislikeCount: data.dislikeCount } : old
+      );
     },
     onError: (err, { videoId: vid }, ctx) => {
       if (ctx?.prevLike !== undefined) utils.likes.getMyLike.setData({ videoId: vid }, ctx.prevLike);
-      if (ctx?.prevVideo) utils.videos.getById.setData({ id: vid }, ctx.prevVideo);
       toast.error(err.message || t("watch.likeError"));
     },
     onSettled: (_, __, { videoId: vid }) => {
       utils.likes.getMyLike.invalidate({ videoId: vid });
-      utils.videos.getById.invalidate({ id: vid });
     },
   });
 
@@ -118,8 +113,13 @@ export default function Watch() {
     onMutate: async ({ channelId }) => {
       await utils.subscriptions.isSubscribed.cancel({ channelId });
       const prev = utils.subscriptions.isSubscribed.getData({ channelId });
+      // Flip boolean ngay — deterministic, không cần tính toán count
       utils.subscriptions.isSubscribed.setData({ channelId }, !prev);
       return { prev };
+    },
+    onSuccess: (data, { channelId }) => {
+      // subscriberCount thực từ server, không hardcode ±1
+      utils.subscriptions.getCount.setData({ channelId }, data.subscriberCount);
     },
     onError: (_, { channelId }, ctx) => {
       if (ctx?.prev !== undefined) utils.subscriptions.isSubscribed.setData({ channelId }, ctx.prev);
@@ -131,26 +131,14 @@ export default function Watch() {
   });
 
   const createCommentMutation = trpc.comments.create.useMutation({
-    onMutate: async ({ videoId: vid, content }) => {
-      await utils.comments.getByVideoId.cancel({ videoId: vid, limit: 20, offset: 0 });
-      const prev = utils.comments.getByVideoId.getData({ videoId: vid, limit: 20, offset: 0 });
-      const optimistic = {
-        id: -Date.now(),
-        videoId: vid,
-        userId: user?.id ?? 0,
-        content,
-        createdAt: new Date(),
-        channelId: null,
-      } as any;
+    onSuccess: (newComment, { videoId: vid }) => {
+      // Dùng comment thực từ server (có real ID) thay vì placeholder
       utils.comments.getByVideoId.setData(
         { videoId: vid, limit: 20, offset: 0 },
-        (old) => (old ? [optimistic, ...old] : [optimistic])
+        (old) => (old ? [newComment, ...old] : [newComment])
       );
-      return { prev };
     },
-    onError: (_, { videoId: vid }, ctx) => {
-      if (ctx?.prev !== undefined)
-        utils.comments.getByVideoId.setData({ videoId: vid, limit: 20, offset: 0 }, ctx.prev);
+    onError: () => {
       toast.error(t("watch.commentError"));
     },
     onSettled: (_, __, { videoId: vid }) => {
@@ -258,7 +246,8 @@ export default function Watch() {
               <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
                 <button
                   onClick={() => handleToggleLike("like")}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors ${
+                  disabled={toggleLikeMutation.isPending}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                     myLike?.type === "like" ? "bg-primary text-white" : "hover:bg-gray-200"
                   }`}
                 >
@@ -268,7 +257,8 @@ export default function Watch() {
                 <div className="w-px h-6 bg-gray-300" />
                 <button
                   onClick={() => handleToggleLike("dislike")}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors ${
+                  disabled={toggleLikeMutation.isPending}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                     myLike?.type === "dislike" ? "bg-primary text-white" : "hover:bg-gray-200"
                   }`}
                 >

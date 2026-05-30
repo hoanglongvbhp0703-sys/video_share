@@ -72,11 +72,15 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
 
   const markAllAsRead = trpc.notifications.markAllAsRead.useMutation({
     onMutate: () => {
-      utils.notifications.getUnreadCount.setData(undefined, 0);
+      // Flip isRead trên tất cả notifications trong cache — deterministic
       utils.notifications.list.setData(
         { limit: 10, offset: 0 },
         (old) => old?.map((n) => ({ ...n, isRead: true }))
       );
+    },
+    onSuccess: (data) => {
+      // unreadCount thực từ server
+      utils.notifications.getUnreadCount.setData(undefined, data.unreadCount);
     },
     onSettled: () => {
       utils.notifications.list.invalidate();
@@ -86,11 +90,15 @@ export default function TopNavigation({ onSearchChange, onSidebarToggle }: TopNa
 
   const markAsRead = trpc.notifications.markAsRead.useMutation({
     onMutate: ({ id }) => {
-      utils.notifications.getUnreadCount.setData(undefined, (old) => Math.max(0, (old ?? 1) - 1));
+      // Flip isRead trên notification cụ thể — deterministic
       utils.notifications.list.setData(
         { limit: 10, offset: 0 },
         (old) => old?.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
+    },
+    onSuccess: (data) => {
+      // unreadCount thực từ server, không hardcode -1
+      utils.notifications.getUnreadCount.setData(undefined, data.unreadCount);
     },
     onSettled: () => {
       utils.notifications.list.invalidate();
