@@ -691,8 +691,17 @@ export const appRouter = router({
       .mutation(async ({ input }): Promise<ChatResult> => {
         const lastUserMsg = [...input.messages].reverse().find(m => m.role === "user")?.content ?? "";
 
+        // For follow-up messages ("gửi đi", "ok", "send it"), fall back to the last substantive user message
+        const proceduralPattern = /^(gửi|goi|send|ok|được|duoc|vâng|vang|có|co rồi|danh sách|list|them|xem|show|cho tôi|give me).{0,20}$/i;
+        const userMessages = input.messages.filter(m => m.role === "user").map(m => m.content);
+        let searchMsg = lastUserMsg;
+        if (proceduralPattern.test(lastUserMsg.trim()) || lastUserMsg.trim().length < 10) {
+          const prev = [...userMessages].reverse().find(m => !proceduralPattern.test(m.trim()) && m.trim().length >= 10);
+          if (prev) searchMsg = prev;
+        }
+
         // Step 1: search DB first — RAG candidates
-        const candidates = await searchVideos(lastUserMsg, 8);
+        const candidates = await searchVideos(searchMsg, 8);
         const toResult = (v: (typeof candidates)[0]): VideoResult => ({
           id: Number(v.id),
           title: v.title,
@@ -721,25 +730,25 @@ export const appRouter = router({
             input.language === "ja" ? "Japanese" : "English";
 
           const candidateList = candidates.length > 0
-            ? candidates.map((v, i) =>
-                `[${i + 1}] ID:${v.id} | "${v.title}" | channel: ${v.channelName ?? "?"} | category: ${v.category ?? "?"}`
+            ? candidates.map(v =>
+                `videoId=${v.id} | title="${v.title}" | channel="${v.channelName ?? "?"}" | category=${v.category ?? "?"}`
               ).join("\n")
             : "(no results found in database)";
 
           const systemPrompt = `You are a video recommendation assistant for VideoShare.
 
-A database search for the user's request returned these candidate videos:
+A database search returned these candidate videos (use the videoId numbers exactly as shown):
 ${candidateList}
 
-Your job: decide which of these videos truly match what the user wants.
+Decide which videos truly match the user's request.
 
 OUTPUT FORMAT (raw JSON only, no markdown):
-{"message":"<1-2 sentences in ${langName}>","videoIds":[<IDs of matching videos, max 4>]}
+{"message":"<1-2 sentences in ${langName}>","videoIds":[<videoId numbers from the list above, max 4>]}
 
 RULES:
-1. Only use IDs from the candidate list above — never invent IDs.
-2. If NONE of the candidates genuinely match the user's request, return videoIds:[] and honestly say the content is not available.
-3. Do NOT pick videos just because they share a category — the title/channel must actually relate to the request.
+1. videoIds must be the integer numbers from "videoId=X" above. Never use array indices. Never invent numbers.
+2. If the candidate titles/channels do NOT relate to the user's request, return videoIds:[] and say the content is not in the system.
+3. Do NOT select a video just because it shares a category — the title or channel must genuinely match.
 4. Respond in ${langName}.`;
 
           const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {

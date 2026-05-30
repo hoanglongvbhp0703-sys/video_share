@@ -1,6 +1,7 @@
 import { useState } from "react";
 import TopNavigation from "./TopNavigation";
 import Sidebar from "./Sidebar";
+import VideoChatBot from "./VideoChatBot";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -49,6 +50,7 @@ export default function Layout({ children, onSearchChange }: LayoutProps) {
           {children}
         </main>
       </div>
+      <VideoChatBot />
     </div>
   );
 }

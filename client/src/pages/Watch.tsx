@@ -164,7 +164,6 @@ export default function Watch() {
 
   const createCommentMutation = trpc.comments.create.useMutation({
     onSuccess: (newComment, { videoId: vid }) => {
-      // Dùng comment thực từ server (có real ID) thay vì placeholder
       utils.comments.getByVideoId.setData(
         { videoId: vid, limit: 20, offset: 0 },
         (old) => (old ? [newComment, ...old] : [newComment])
@@ -175,6 +174,8 @@ export default function Watch() {
     },
     onSettled: (_, __, { videoId: vid }) => {
       utils.comments.getByVideoId.invalidate({ videoId: vid, limit: 20, offset: 0 });
+      // Refresh commentCount in the header (updated by DB trigger, needs re-fetch)
+      utils.videos.getById.invalidate({ id: vid });
     },
   });
 
