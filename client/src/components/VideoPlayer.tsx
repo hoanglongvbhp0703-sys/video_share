@@ -14,6 +14,8 @@ export default function VideoPlayer({ src, poster, title, initialTime, onTimeUpd
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Prevent seek loop: seeking triggers another canplay, which would seek again indefinitely
+  const seekDoneRef = useRef(false);
   const { t } = useTranslation();
 
   // Check if src is empty or invalid
@@ -25,11 +27,15 @@ export default function VideoPlayer({ src, poster, title, initialTime, onTimeUpd
 
     setIsLoading(true);
     setError(null);
+    seekDoneRef.current = false;
 
     const handleCanPlay = () => {
       setIsLoading(false);
-      if (initialTime && initialTime > 0) {
+      if (initialTime && initialTime > 0 && !seekDoneRef.current) {
+        seekDoneRef.current = true;
         video.currentTime = initialTime;
+        // Return here — the seek triggers another canplay which will call play()
+        return;
       }
       const playPromise = video.play();
       if (playPromise !== undefined) {
@@ -74,7 +80,8 @@ export default function VideoPlayer({ src, poster, title, initialTime, onTimeUpd
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !initialTime || initialTime <= 0) return;
-    if (video.readyState >= 2) {
+    if (video.readyState >= 2 && !seekDoneRef.current) {
+      seekDoneRef.current = true;
       video.currentTime = initialTime;
     }
   }, [initialTime]);
