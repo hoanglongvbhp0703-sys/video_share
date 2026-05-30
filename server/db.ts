@@ -1217,7 +1217,32 @@ export async function updateLivestreamViewerCount(id: number, count: number) {
 export async function saveLivestreamRecording(id: number, videoUrl: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  // 1. Lưu videoUrl vào livestream
   await db.update(livestreams).set({ videoUrl }).where(eq(livestreams.id, id));
+
+  // 2. Tạo video entry để bản ghi xuất hiện trong danh sách video kênh
+  const stream = await getLivestreamById(id);
+  if (!stream?.channelId) return;
+
+  const durationSecs =
+    stream.startedAt && stream.endedAt
+      ? Math.round(
+          (new Date(stream.endedAt).getTime() - new Date(stream.startedAt).getTime()) / 1000
+        )
+      : null;
+
+  const title = stream.title || "Livestream Recording";
+  await db.insert(videos).values({
+    channelId: stream.channelId,
+    title,
+    titleNorm: normalizeVi(title),
+    videoUrl,
+    thumbnailUrl: stream.thumbnailUrl ?? null,
+    duration: durationSecs,
+    category: "live",
+    description: "",
+  });
 }
 
 export async function getLivestreamById(id: number) {

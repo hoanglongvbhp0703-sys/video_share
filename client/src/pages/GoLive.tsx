@@ -8,6 +8,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Video, Users, Send, Square, Radio, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SESSION_TOKEN_KEY } from "@shared/const";
 
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
@@ -30,9 +31,14 @@ function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 4000): Promise<vo
 async function uploadBlob(blob: Blob, key: string): Promise<string> {
   const mimeType = blob.type || "video/webm";
   const params = new URLSearchParams({ key, mimeType });
+  const token = sessionStorage.getItem(SESSION_TOKEN_KEY);
   const resp = await fetch(`/api/upload-file?${params}`, {
     method: "POST",
-    headers: { "Content-Type": mimeType },
+    credentials: "include",
+    headers: {
+      "Content-Type": mimeType,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: blob,
   });
   if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
@@ -66,6 +72,7 @@ export default function GoLive() {
   const recordedChunks = useRef<Blob[]>([]);
   const savedLivestreamId = useRef<number | null>(null);
 
+  const utils = trpc.useUtils();
   const startMutation = trpc.livestreams.start.useMutation();
   const endMutation = trpc.livestreams.end.useMutation();
   const sendAnswerMutation = trpc.livestreams.sendStreamerAnswer.useMutation();
@@ -194,7 +201,12 @@ export default function GoLive() {
       const url = await uploadBlob(blob, key);
       await saveRecordingMutation.mutateAsync({ id, videoUrl: url });
       setUploadState("done");
+      // Làm mới cache để Channel page + video list thấy bản ghi mới
+      utils.channels.getLivestreams.invalidate();
+      utils.channels.getVideos.invalidate();
+      utils.videos.list.invalidate();
       toast.success(t("golive.recordingSaved"));
+      navigate(`/replay/${id}`);
     } catch (err) {
       console.error("Lưu recording thất bại:", err);
       setUploadState("error");
