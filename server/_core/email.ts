@@ -1,4 +1,8 @@
 import nodemailer from "nodemailer";
+import { setDefaultResultOrder } from "dns";
+
+// Force IPv4 DNS resolution globally — Railway không hỗ trợ IPv6 outbound
+setDefaultResultOrder("ipv4first");
 
 // HTML template
 function buildOtpHtml(to: string, otp: string): string {
