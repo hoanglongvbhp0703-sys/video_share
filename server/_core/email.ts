@@ -1,7 +1,7 @@
-import { Resend } from "resend";
+import sgMail from "@sendgrid/mail";
 import nodemailer from "nodemailer";
 
-// HTML template dùng chung cho cả Resend và SMTP fallback
+// HTML template dùng chung cho tất cả provider
 function buildOtpHtml(to: string, otp: string): string {
   return `
 <!DOCTYPE html>
@@ -52,64 +52,81 @@ function buildOtpHtml(to: string, otp: string): string {
 </html>`.trim();
 }
 
-// ─── Gửi qua Resend API (HTTPS — hoạt động trên Railway) ───────────────────
-async function sendViaResend(to: string, otp: string): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY not set");
+// ─── Provider 1: SendGrid (primary — free 100 emails/ngày, không cần domain) ─
+async function sendViaSendGrid(to: string, otp: string): Promise<void> {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("SENDGRID_API_KEY not set");
 
-  const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM ?? "VideoShare <onboarding@resend.dev>";
+  // from phải là email đã verify Single Sender trong SendGrid dashboard
+  const from = process.env.SENDGRID_FROM ?? process.env.SMTP_USER;
+  if (!from) throw new Error("SENDGRID_FROM or SMTP_USER must be set as verified sender");
 
-  const { error } = await resend.emails.send({
+  sgMail.setApiKey(apiKey);
+  await sgMail.send({
+    to,
     from,
-    to: [to],
     subject: "Mã đặt lại mật khẩu của bạn",
     html: buildOtpHtml(to, otp),
   });
-
-  if (error) throw new Error(error.message);
-  console.log(`[Email] Resend: OTP sent to ${to}`);
+  console.log(`[Email] SendGrid: OTP sent to ${to}`);
 }
 
-// ─── Fallback: SMTP (không hoạt động trên Railway vì block port) ───────────
+// ─── Provider 2: SMTP (local dev fallback — bị block trên Railway) ─────────
 async function sendViaSmtp(to: string, otp: string): Promise<void> {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if (!user || !pass) throw new Error("SMTP_USER/SMTP_PASS not set");
 
-  const transport = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-    connectionTimeout: 5000,
-    socketTimeout: 5000,
-  } as any);
+  // Thử port 587 (STARTTLS) trước, fallback sang 465 (SSL)
+  const configs = [
+    { port: 587, secure: false, requireTLS: true },
+    { port: 465, secure: true, requireTLS: false },
+  ] as const;
 
-  await transport.sendMail({
-    from: `"VideoShare" <${user}>`,
-    to,
-    subject: "Mã đặt lại mật khẩu của bạn",
-    html: buildOtpHtml(to, otp),
-  });
-  console.log(`[Email] SMTP: OTP sent to ${to}`);
+  let lastError: Error | undefined;
+  for (const { port, secure, requireTLS } of configs) {
+    try {
+      const transport = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port,
+        secure,
+        requireTLS,
+        auth: { user, pass },
+        connectionTimeout: 8000,
+        socketTimeout: 8000,
+      } as any);
+
+      await transport.sendMail({
+        from: `"VideoShare" <${user}>`,
+        to,
+        subject: "Mã đặt lại mật khẩu của bạn",
+        html: buildOtpHtml(to, otp),
+      });
+      console.log(`[Email] SMTP: OTP sent to ${to} (port ${port})`);
+      return;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[Email] SMTP port ${port} thất bại → ${lastError.message}`);
+    }
+  }
+
+  throw lastError ?? new Error("All SMTP attempts failed");
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────
 export async function sendResetPasswordOtp(to: string, otp: string): Promise<void> {
-  // Ưu tiên Resend (HTTPS, hoạt động trên mọi host)
-  if (process.env.RESEND_API_KEY) {
+  // 1. SendGrid (ưu tiên cao nhất — hoạt động trên Railway, free 100/ngày)
+  if (process.env.SENDGRID_API_KEY) {
     try {
-      await sendViaResend(to, otp);
+      await sendViaSendGrid(to, otp);
       return;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[Email] Resend thất bại → ${msg}`);
-      // Không throw — fallback về SMTP hoặc console
+      console.error(`[Email] SendGrid thất bại → ${msg}`);
     }
   }
 
-  // Fallback: SMTP (chỉ dùng ở local dev, Railway block SMTP)
+  // 2. SMTP Gmail (chỉ dùng ở local dev)
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     try {
       await sendViaSmtp(to, otp);
@@ -117,11 +134,10 @@ export async function sendResetPasswordOtp(to: string, otp: string): Promise<voi
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[Email] SMTP thất bại → ${msg}`);
-      // Không throw — fallback về console
     }
   }
 
-  // Final fallback: log ra console
+  // 3. Final fallback: log ra console
   console.log("\n==============================");
   console.log("[OTP] Chưa cấu hình email — log console:");
   console.log(`  Email : ${to}`);

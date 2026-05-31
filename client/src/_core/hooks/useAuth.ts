@@ -22,7 +22,6 @@ function getStoredUser() {
 export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
     options ?? {};
-  const utils = trpc.useUtils();
 
   const [storedUser] = useState(getStoredUser);
 
@@ -32,11 +31,7 @@ export function useAuth(options?: UseAuthOptions) {
     placeholderData: storedUser,
   });
 
-  const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => {
-      utils.auth.me.setData(undefined, null);
-    },
-  });
+  const logoutMutation = trpc.auth.logout.useMutation();
 
   const logout = useCallback(async () => {
     try {
@@ -53,10 +48,11 @@ export function useAuth(options?: UseAuthOptions) {
     } finally {
       localStorage.removeItem("manus-runtime-user-info");
       sessionStorage.removeItem(SESSION_TOKEN_KEY);
-      utils.auth.me.setData(undefined, null);
+      // Không gọi setData(null) ở đây — tránh trigger redirect effect
+      // trong khi navigation bên dưới đang chạy (gây double-reload)
       window.location.href = "/";
     }
-  }, [logoutMutation, utils]);
+  }, [logoutMutation]);
 
   useEffect(() => {
     if (!meQuery.isPlaceholderData) {
