@@ -70,6 +70,7 @@ async function sendViaSmtp(to: string, otp: string): Promise<void> {
     auth: { user, pass },
     connectionTimeout: 8000,
     socketTimeout: 8000,
+    family: 4, // force IPv4 — Railway không hỗ trợ IPv6 outbound
   });
 
   await transporter.sendMail({
