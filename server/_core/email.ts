@@ -8,9 +8,10 @@ function createTransporter() {
     transport: nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
-      secure: true, // SSL — Railway block port 587, dùng 465 thay thế
-      family: 4,    // Buộc IPv4 — Railway không có IPv6 outbound route
+      secure: true,
       auth: { user, pass },
+      connectionTimeout: 5000, // fail nhanh thay vì treo 2 phút
+      socketTimeout: 5000,
     } as any),
     user,
   };

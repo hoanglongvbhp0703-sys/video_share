@@ -68,21 +68,32 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      if (res.ok) {
-        setStep("otp");
-        startResendCooldown();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.message || t("auth.errorServerError"));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000); // 12s timeout
+      try {
+        const res = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok) {
+          setStep("otp");
+          startResendCooldown();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setError(data?.message || t("auth.errorServerError"));
+        }
+      } finally {
+        clearTimeout(timer);
       }
-    } catch {
-      setError(t("auth.errorCantConnect"));
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setError(t("auth.errorCantConnect"));
+      } else {
+        setError(t("auth.errorCantConnect"));
+      }
     } finally {
       setLoading(false);
     }
@@ -141,17 +152,25 @@ export default function ForgotPassword() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      if (res.ok) {
-        setOtpInputs(["", "", "", "", "", ""]);
-        startResendCooldown();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.message || t("auth.errorServerError"));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      try {
+        const res = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok) {
+          setOtpInputs(["", "", "", "", "", ""]);
+          startResendCooldown();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setError(data?.message || t("auth.errorServerError"));
+        }
+      } finally {
+        clearTimeout(timer);
       }
     } catch {
       setError(t("auth.errorCantConnect"));

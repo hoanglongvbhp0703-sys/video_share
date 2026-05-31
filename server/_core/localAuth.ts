@@ -109,7 +109,14 @@ export function registerLocalAuthRoutes(app: Express) {
 
       if (user && user.passwordHash) {
         const otp = await db.createEmailOtp(emailLower, "reset-password");
-        await sendResetPasswordOtp(emailLower, otp);
+        try {
+          await sendResetPasswordOtp(emailLower, otp);
+        } catch (emailErr) {
+          // SMTP/email thất bại — vẫn trả success, OTP còn hiệu lực trong DB
+          // Log OTP ra console để admin có thể hỗ trợ thủ công nếu cần
+          console.warn(`[LocalAuth] Gửi email thất bại nhưng OTP vẫn hợp lệ.`);
+          console.log(`[LocalAuth] OTP cho ${emailLower}: ${otp} (hết hạn 10 phút)`);
+        }
       }
 
       // Luôn trả success để không lộ email có tồn tại không
