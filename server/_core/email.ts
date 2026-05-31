@@ -1,7 +1,6 @@
 import sgMail from "@sendgrid/mail";
-import nodemailer from "nodemailer";
 
-// HTML template dùng chung cho tất cả provider
+// HTML template
 function buildOtpHtml(to: string, otp: string): string {
   return `
 <!DOCTYPE html>
@@ -52,14 +51,13 @@ function buildOtpHtml(to: string, otp: string): string {
 </html>`.trim();
 }
 
-// ─── Provider 1: SendGrid (primary — free 100 emails/ngày, không cần domain) ─
+// ─── SendGrid (provider duy nhất — hoạt động trên Railway) ───────────────────
 async function sendViaSendGrid(to: string, otp: string): Promise<void> {
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) throw new Error("SENDGRID_API_KEY not set");
 
-  // from phải là email đã verify Single Sender trong SendGrid dashboard
-  const from = process.env.SENDGRID_FROM ?? process.env.SMTP_USER;
-  if (!from) throw new Error("SENDGRID_FROM or SMTP_USER must be set as verified sender");
+  const from = process.env.SENDGRID_FROM;
+  if (!from) throw new Error("SENDGRID_FROM not set");
 
   sgMail.setApiKey(apiKey);
   await sgMail.send({
@@ -71,51 +69,8 @@ async function sendViaSendGrid(to: string, otp: string): Promise<void> {
   console.log(`[Email] SendGrid: OTP sent to ${to}`);
 }
 
-// ─── Provider 2: SMTP (local dev fallback — bị block trên Railway) ─────────
-async function sendViaSmtp(to: string, otp: string): Promise<void> {
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  if (!user || !pass) throw new Error("SMTP_USER/SMTP_PASS not set");
-
-  // Thử port 587 (STARTTLS) trước, fallback sang 465 (SSL)
-  const configs = [
-    { port: 587, secure: false, requireTLS: true },
-    { port: 465, secure: true, requireTLS: false },
-  ] as const;
-
-  let lastError: Error | undefined;
-  for (const { port, secure, requireTLS } of configs) {
-    try {
-      const transport = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port,
-        secure,
-        requireTLS,
-        auth: { user, pass },
-        connectionTimeout: 8000,
-        socketTimeout: 8000,
-      } as any);
-
-      await transport.sendMail({
-        from: `"VideoShare" <${user}>`,
-        to,
-        subject: "Mã đặt lại mật khẩu của bạn",
-        html: buildOtpHtml(to, otp),
-      });
-      console.log(`[Email] SMTP: OTP sent to ${to} (port ${port})`);
-      return;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[Email] SMTP port ${port} thất bại → ${lastError.message}`);
-    }
-  }
-
-  throw lastError ?? new Error("All SMTP attempts failed");
-}
-
 // ─── Public API ────────────────────────────────────────────────────────────
 export async function sendResetPasswordOtp(to: string, otp: string): Promise<void> {
-  // 1. SendGrid (ưu tiên cao nhất — hoạt động trên Railway, free 100/ngày)
   if (process.env.SENDGRID_API_KEY) {
     try {
       await sendViaSendGrid(to, otp);
@@ -126,18 +81,7 @@ export async function sendResetPasswordOtp(to: string, otp: string): Promise<voi
     }
   }
 
-  // 2. SMTP Gmail (chỉ dùng ở local dev)
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-    try {
-      await sendViaSmtp(to, otp);
-      return;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[Email] SMTP thất bại → ${msg}`);
-    }
-  }
-
-  // 3. Final fallback: log ra console
+  // Fallback: log ra console (dev mode hoặc chưa cấu hình SendGrid)
   console.log("\n==============================");
   console.log("[OTP] Chưa cấu hình email — log console:");
   console.log(`  Email : ${to}`);
