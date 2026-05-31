@@ -68,6 +68,8 @@ async function sendViaSmtp(to: string, otp: string): Promise<void> {
     port,
     secure: port === 465,
     auth: { user, pass },
+    connectionTimeout: 8000,
+    socketTimeout: 8000,
   });
 
   await transporter.sendMail({
