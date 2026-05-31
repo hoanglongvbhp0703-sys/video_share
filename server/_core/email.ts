@@ -1,8 +1,5 @@
 import nodemailer from "nodemailer";
-import { setDefaultResultOrder } from "dns";
-
-// Force IPv4 DNS resolution globally — Railway không hỗ trợ IPv6 outbound
-setDefaultResultOrder("ipv4first");
+import { resolve4 } from "dns/promises";
 
 // HTML template
 function buildOtpHtml(to: string, otp: string): string {
@@ -67,14 +64,23 @@ async function sendViaSmtp(to: string, otp: string): Promise<void> {
   const fromEmail = process.env.SMTP_FROM_EMAIL ?? user;
   const fromName = process.env.SMTP_FROM_NAME ?? "VideoShare";
 
+  // Resolve hostname → IPv4 trước để tránh Railway dùng IPv6
+  let resolvedHost = host;
+  try {
+    const [ipv4] = await resolve4(host);
+    resolvedHost = ipv4;
+  } catch {
+    // fallback về hostname gốc nếu resolve thất bại
+  }
+
   const transporter = nodemailer.createTransport({
-    host,
+    host: resolvedHost,
     port,
     secure: port === 465,
     auth: { user, pass },
     connectionTimeout: 8000,
     socketTimeout: 8000,
-    family: 4, // force IPv4 — Railway không hỗ trợ IPv6 outbound
+    tls: { servername: host }, // giữ hostname gốc cho TLS certificate check
   });
 
   await transporter.sendMail({
