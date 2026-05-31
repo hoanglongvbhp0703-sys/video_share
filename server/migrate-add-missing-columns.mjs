@@ -153,6 +153,22 @@ async function run() {
       name: 'livestreams.videoUrl column',
       sql: `ALTER TABLE livestreams ADD COLUMN IF NOT EXISTS "videoUrl" TEXT`,
     },
+    {
+      name: 'emailOtps table',
+      sql: `CREATE TABLE IF NOT EXISTS "emailOtps" (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(320) NOT NULL,
+        otp VARCHAR(6) NOT NULL,
+        purpose VARCHAR(20) NOT NULL,
+        "expiresAt" TIMESTAMP NOT NULL,
+        "usedAt" TIMESTAMP,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+    },
+    {
+      name: 'emailOtps email+purpose index',
+      sql: `CREATE INDEX IF NOT EXISTS "emailOtps_email_purpose_idx" ON "emailOtps" (email, purpose)`,
+    },
   ];
 
   let ok = 0;

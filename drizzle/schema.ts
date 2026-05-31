@@ -274,6 +274,24 @@ export const passwordResets = pgTable(
 
 export type PasswordReset = typeof passwordResets.$inferSelect;
 
+export const emailOtps = pgTable(
+  "emailOtps",
+  {
+    id: serial("id").primaryKey(),
+    email: varchar("email", { length: 320 }).notNull(),
+    otp: varchar("otp", { length: 6 }).notNull(),
+    purpose: varchar("purpose", { length: 20 }).$type<"register" | "reset-password">().notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    usedAt: timestamp("usedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    emailPurposeIdx: index("emailOtps_email_purpose_idx").on(table.email, table.purpose),
+  })
+);
+
+export type EmailOtp = typeof emailOtps.$inferSelect;
+
 export const livestreams = pgTable(
   "livestreams",
   {

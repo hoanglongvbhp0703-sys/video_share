@@ -4,6 +4,7 @@ import postgres from "postgres";
 import {
   InsertUser, users, channels, videos, comments, likes, subscriptions, watchHistory,
   playlists, playlistVideos, tags, videoTags, notifications, reports, passwordResets,
+  emailOtps,
   livestreams, livestreamSignals, liveChats,
   InsertNotification,
 } from "../drizzle/schema";
@@ -1353,4 +1354,39 @@ export async function getLiveChats(livestreamId: number, afterId: number, limit 
     .where(and(eq(liveChats.livestreamId, livestreamId), gt(liveChats.id, afterId)))
     .orderBy(asc(liveChats.id))
     .limit(limit);
+}
+
+// ─── Email OTP queries ─────────────────────────────────────────────────────────
+
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 phút
+
+export async function createEmailOtp(email: string, purpose: "register" | "reset-password"): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+  // Xóa OTP cũ chưa dùng của email + purpose này
+  await db.delete(emailOtps).where(
+    and(eq(emailOtps.email, email), eq(emailOtps.purpose, purpose), sql`${emailOtps.usedAt} IS NULL`)
+  );
+  await db.insert(emailOtps).values({ email, otp, purpose, expiresAt });
+  return otp;
+}
+
+export async function verifyEmailOtp(
+  email: string, otp: string, purpose: "register" | "reset-password"
+): Promise<{ valid: boolean; reason?: "NOT_FOUND" | "EXPIRED" | "USED" }> {
+  const db = await getDb();
+  if (!db) return { valid: false, reason: "NOT_FOUND" };
+  const result = await db
+    .select()
+    .from(emailOtps)
+    .where(and(eq(emailOtps.email, email), eq(emailOtps.otp, otp), eq(emailOtps.purpose, purpose)))
+    .limit(1);
+  const record = result[0];
+  if (!record) return { valid: false, reason: "NOT_FOUND" };
+  if (record.usedAt) return { valid: false, reason: "USED" };
+  if (new Date() > record.expiresAt) return { valid: false, reason: "EXPIRED" };
+  await db.update(emailOtps).set({ usedAt: new Date() }).where(eq(emailOtps.id, record.id));
+  return { valid: true };
 }

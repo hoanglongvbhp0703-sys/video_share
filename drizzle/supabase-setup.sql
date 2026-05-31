@@ -269,6 +269,18 @@ CREATE UNIQUE INDEX "passwordResets_token_uniq" ON "passwordResets" (token);
 CREATE INDEX "passwordResets_userId_idx" ON "passwordResets" ("userId");
 ALTER TABLE "passwordResets" ADD CONSTRAINT "fk_passwordResets_user" FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE;
 
+-- Table: emailOtps
+CREATE TABLE "emailOtps" (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(320) NOT NULL,
+  otp VARCHAR(6) NOT NULL,
+  purpose VARCHAR(20) NOT NULL CHECK (purpose IN ('register', 'reset-password')),
+  "expiresAt" TIMESTAMP NOT NULL,
+  "usedAt" TIMESTAMP,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX "emailOtps_email_purpose_idx" ON "emailOtps" (email, purpose);
+
 -- Table: livestreams
 CREATE TABLE livestreams (
   id SERIAL PRIMARY KEY,
