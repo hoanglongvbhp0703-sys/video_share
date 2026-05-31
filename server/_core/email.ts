@@ -1,4 +1,4 @@
-import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 
 // HTML template
 function buildOtpHtml(to: string, otp: string): string {
@@ -51,39 +51,50 @@ function buildOtpHtml(to: string, otp: string): string {
 </html>`.trim();
 }
 
-// ─── SendGrid (provider duy nhất — hoạt động trên Railway) ───────────────────
-async function sendViaSendGrid(to: string, otp: string): Promise<void> {
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) throw new Error("SENDGRID_API_KEY not set");
+// ─── SMTP via nodemailer ───────────────────────────────────────────────────────
+async function sendViaSmtp(to: string, otp: string): Promise<void> {
+  const host = process.env.SMTP_HOST ?? "smtp.gmail.com";
+  const port = parseInt(process.env.SMTP_PORT ?? "465", 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
 
-  const from = process.env.SENDGRID_FROM;
-  if (!from) throw new Error("SENDGRID_FROM not set");
+  if (!user || !pass) throw new Error("SMTP_USER / SMTP_PASS not set");
 
-  sgMail.setApiKey(apiKey);
-  await sgMail.send({
+  const fromEmail = process.env.SMTP_FROM_EMAIL ?? user;
+  const fromName = process.env.SMTP_FROM_NAME ?? "VideoShare";
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+
+  await transporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
     to,
-    from,
     subject: "Mã đặt lại mật khẩu của bạn",
     html: buildOtpHtml(to, otp),
   });
-  console.log(`[Email] SendGrid: OTP sent to ${to}`);
+
+  console.log(`[Email] SMTP (${host}:${port}): OTP sent to ${to}`);
 }
 
-// ─── Public API ────────────────────────────────────────────────────────────
+// ─── Public API ────────────────────────────────────────────────────────────────
 export async function sendResetPasswordOtp(to: string, otp: string): Promise<void> {
-  if (process.env.SENDGRID_API_KEY) {
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     try {
-      await sendViaSendGrid(to, otp);
+      await sendViaSmtp(to, otp);
       return;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[Email] SendGrid thất bại → ${msg}`);
+      console.error(`[Email] SMTP thất bại → ${msg}`);
     }
   }
 
-  // Fallback: log ra console (dev mode hoặc chưa cấu hình SendGrid)
+  // Fallback: log ra console khi chưa cấu hình SMTP
   console.log("\n==============================");
-  console.log("[OTP] Chưa cấu hình email — log console:");
+  console.log("[OTP] Chưa cấu hình SMTP — log console:");
   console.log(`  Email : ${to}`);
   console.log(`  OTP   : ${otp}`);
   console.log("  (Hết hạn sau 10 phút)");
