@@ -102,7 +102,7 @@ const ja = {
     // OTP
     otpTitle: "確認コードを入力",
     otpSentTo: "OTPコードを送信しました",
-    otpDevHint: "(開発: サーバーコンソールでコードを確認)",
+    otpDevHint: "(受信トレイをご確認ください。迷惑メールフォルダも確認してください)",
     otpNotReceived: "コードが届きませんか？",
     resendOtp: "再送信",
     resendIn: "{{seconds}}秒後に再送信",

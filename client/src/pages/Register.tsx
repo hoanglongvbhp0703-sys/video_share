@@ -2,68 +2,30 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SESSION_TOKEN_KEY } from "@shared/const";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useTranslation } from "react-i18next";
-import { Play, CheckCircle, Mail, ArrowLeft } from "lucide-react";
-
-type Step = "form" | "otp" | "done";
+import { Play, CheckCircle } from "lucide-react";
 
 export default function Register() {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
   const [, navigate] = useLocation();
 
-  // Form fields
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  // OTP
-  const [otp, setOtp] = useState("");
-  const [otpInputs, setOtpInputs] = useState(["", "", "", "", "", ""]);
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  const [step, setStep] = useState<Step>("form");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [success, setSuccess] = useState(false);
 
   if (isAuthenticated) {
     navigate("/");
     return null;
   }
 
-  // ─── OTP input helpers ─────────────────────────────────────────────────────
-  const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    const next = [...otpInputs];
-    next[index] = digit;
-    setOtpInputs(next);
-    setOtp(next.join(""));
-    setError("");
-    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !otpInputs[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    const next = ["", "", "", "", "", ""];
-    for (let i = 0; i < digits.length; i++) next[i] = digits[i];
-    setOtpInputs(next);
-    setOtp(next.join(""));
-    otpRefs.current[Math.min(digits.length, 5)]?.focus();
-  };
-
-  // ─── Step 1: Submit form → send OTP ───────────────────────────────────────
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(t("auth.errorEmailInvalid"));
@@ -85,47 +47,10 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/send-register-otp", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password, name: name.trim() }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        setStep("otp");
-        startResendCooldown();
-      } else if (data?.error === "EMAIL_TAKEN") {
-        setError(t("auth.errorEmailTaken"));
-      } else if (data?.error === "EMAIL_INVALID") {
-        setError(t("auth.errorEmailInvalid"));
-      } else {
-        setError(data?.message || t("auth.errorRegisterFail"));
-      }
-    } catch {
-      setError(t("auth.errorCantConnect"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ─── Step 2: Verify OTP → create user ─────────────────────────────────────
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = otpInputs.join("");
-    if (code.length !== 6) {
-      setError(t("auth.errorOtpRequired"));
-      return;
-    }
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/verify-register-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), otp: code, name: name.trim(), password }),
         credentials: "include",
       });
 
@@ -133,52 +58,16 @@ export default function Register() {
 
       if (res.ok) {
         if (data?.token) sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
-        setStep("done");
+        setSuccess(true);
         setTimeout(() => { window.location.href = "/"; }, 1200);
-      } else if (data?.error === "OTP_NOT_FOUND") {
-        setError(t("auth.errorOtpInvalid"));
-      } else if (data?.error === "OTP_EXPIRED") {
-        setError(t("auth.errorOtpExpired"));
-      } else if (data?.error === "OTP_USED") {
-        setError(t("auth.errorOtpUsed"));
+      } else if (data?.error === "INVALID_CREDENTIALS") {
+        setError(t("auth.errorEmailTaken"));
+      } else if (data?.error === "NO_PASSWORD") {
+        setError(t("auth.errorEmailOtherMethod"));
+      } else if (data?.error === "EMAIL_INVALID") {
+        setError(data.message || t("auth.errorEmailInvalid"));
       } else {
-        setError(data?.message || t("auth.errorRegisterFail"));
-      }
-    } catch {
-      setError(t("auth.errorCantConnect"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ─── Resend OTP ────────────────────────────────────────────────────────────
-  const startResendCooldown = () => {
-    setResendCooldown(60);
-    const interval = setInterval(() => {
-      setResendCooldown((c) => {
-        if (c <= 1) { clearInterval(interval); return 0; }
-        return c - 1;
-      });
-    }, 1000);
-  };
-
-  const handleResend = async () => {
-    if (resendCooldown > 0) return;
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/send-register-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password, name: name.trim() }),
-      });
-      if (res.ok) {
-        setOtpInputs(["", "", "", "", "", ""]);
-        setOtp("");
-        startResendCooldown();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.message || t("auth.errorRegisterFail"));
+        setError(t("auth.errorRegisterFail"));
       }
     } catch {
       setError(t("auth.errorCantConnect"));
@@ -212,9 +101,7 @@ export default function Register() {
 
         {/* Card */}
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 shadow-2xl">
-
-          {/* ── Done ── */}
-          {step === "done" && (
+          {success ? (
             <div className="text-center py-6">
               <div className="flex justify-center mb-4">
                 <CheckCircle className="w-16 h-16 text-green-400" />
@@ -222,13 +109,11 @@ export default function Register() {
               <p className="text-lg font-semibold text-white mb-1">{t("auth.registerSuccess")}</p>
               <p className="text-sm text-white/50">{t("auth.redirecting")}</p>
             </div>
-          )}
-
-          {/* ── Form ── */}
-          {step === "form" && (
+          ) : (
             <>
               <h2 className="text-xl font-bold text-white mb-6 text-center">{t("auth.registerTitle")}</h2>
-              <form onSubmit={handleFormSubmit} className="space-y-4">
+
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-1.5">{t("auth.email")}</label>
                   <Input
@@ -293,7 +178,7 @@ export default function Register() {
                   size="lg"
                   disabled={loading || !email.trim() || !name.trim() || !password || !confirmPassword}
                 >
-                  {loading ? t("auth.sendingOtp") : t("auth.continueToOtp")}
+                  {loading ? t("auth.registerLoading") : t("auth.registerSubmit")}
                 </Button>
 
                 <p className="text-center text-sm text-white/50 pt-1">
@@ -301,84 +186,6 @@ export default function Register() {
                   <Link href="/login" className="text-blue-300 font-medium hover:text-blue-200 transition-colors">
                     {t("auth.loginLink")}
                   </Link>
-                </p>
-              </form>
-            </>
-          )}
-
-          {/* ── OTP ── */}
-          {step === "otp" && (
-            <>
-              <button
-                type="button"
-                onClick={() => { setStep("form"); setError(""); setOtpInputs(["", "", "", "", "", ""]); }}
-                className="flex items-center gap-1 text-white/60 hover:text-white text-sm mb-4 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" /> {t("auth.backToForm")}
-              </button>
-
-              <div className="text-center mb-6">
-                <div className="flex justify-center mb-3">
-                  <div className="w-14 h-14 bg-blue-500/20 border border-blue-400/40 rounded-full flex items-center justify-center">
-                    <Mail className="w-7 h-7 text-blue-300" />
-                  </div>
-                </div>
-                <h2 className="text-xl font-bold text-white mb-1">{t("auth.otpTitle")}</h2>
-                <p className="text-sm text-white/60">
-                  {t("auth.otpSentTo")} <span className="text-white font-medium">{email}</span>
-                </p>
-                <p className="text-xs text-white/40 mt-1">{t("auth.otpDevHint")}</p>
-              </div>
-
-              <form onSubmit={handleOtpSubmit} className="space-y-5">
-                <div className="flex gap-2 justify-center">
-                  {otpInputs.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => { otpRefs.current[i] = el; }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      onPaste={i === 0 ? handleOtpPaste : undefined}
-                      disabled={loading}
-                      className="w-11 h-14 text-center text-xl font-bold rounded-lg border border-white/20 bg-white/10 text-white focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 disabled:opacity-50 transition-all"
-                      autoFocus={i === 0}
-                    />
-                  ))}
-                </div>
-
-                {error && (
-                  <div className="bg-red-500/20 border border-red-400/30 rounded-lg px-3 py-2">
-                    <p className="text-sm text-red-300 text-center">{error}</p>
-                  </div>
-                )}
-
-                <Button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-primary to-blue-500 hover:from-primary/90 hover:to-blue-500/90 text-white font-semibold shadow-lg shadow-primary/25 border-0"
-                  size="lg"
-                  disabled={loading || otpInputs.join("").length !== 6}
-                >
-                  {loading ? t("auth.verifyingOtp") : t("auth.verifyOtp")}
-                </Button>
-
-                <p className="text-center text-sm text-white/50">
-                  {t("auth.otpNotReceived")}{" "}
-                  {resendCooldown > 0 ? (
-                    <span className="text-white/40">{t("auth.resendIn", { seconds: resendCooldown })}</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleResend}
-                      disabled={loading}
-                      className="text-blue-300 font-medium hover:text-blue-200 transition-colors"
-                    >
-                      {t("auth.resendOtp")}
-                    </button>
-                  )}
                 </p>
               </form>
             </>

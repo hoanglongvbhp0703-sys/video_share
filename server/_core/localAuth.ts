@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { sendResetPasswordOtp } from "./email";
 
 const SALT_ROUNDS = 10;
 
@@ -11,6 +12,12 @@ export function registerLocalAuthRoutes(app: Express) {
   /**
    * POST /api/auth/login
    * Body: { email, password, name? }
+   *
+   * - Email tồn tại + password đúng → đăng nhập (200)
+   * - Email tồn tại + password sai  → 401 INVALID_CREDENTIALS
+   * - Email tồn tại + không có password trong DB → 401 NO_PASSWORD
+   * - Email chưa có, không có name  → 422 NAME_REQUIRED
+   * - Email chưa có, có name + password → tạo tài khoản + đăng nhập (200)
    */
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     const { email, password, name } = req.body ?? {};
@@ -80,117 +87,10 @@ export function registerLocalAuthRoutes(app: Express) {
   });
 
   /**
-   * POST /api/auth/send-register-otp
-   * Body: { email, name, password }
-   * Kiểm tra email chưa tồn tại → tạo OTP 6 số → log console.
-   */
-  app.post("/api/auth/send-register-otp", async (req: Request, res: Response) => {
-    const { email, name, password } = req.body ?? {};
-
-    if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      res.status(400).json({ error: "EMAIL_INVALID", message: "Email không hợp lệ" });
-      return;
-    }
-    if (!name || !String(name).trim()) {
-      res.status(422).json({ error: "NAME_REQUIRED", message: "Vui lòng nhập tên hiển thị" });
-      return;
-    }
-    if (!password || typeof password !== "string" || password.length < 6) {
-      res.status(422).json({ error: "PASSWORD_REQUIRED", message: "Mật khẩu phải có ít nhất 6 ký tự" });
-      return;
-    }
-
-    const emailLower = email.toLowerCase().trim();
-
-    try {
-      const existing = await db.getUserByEmail(emailLower);
-      if (existing) {
-        res.status(409).json({ error: "EMAIL_TAKEN", message: "Email này đã được đăng ký" });
-        return;
-      }
-
-      const otp = await db.createEmailOtp(emailLower, "register");
-
-      console.log("\n==============================");
-      console.log("[Register OTP] Mã xác nhận đăng ký:");
-      console.log(`  Email : ${emailLower}`);
-      console.log(`  OTP   : ${otp}`);
-      console.log("  (Hết hạn sau 10 phút)");
-      console.log("==============================\n");
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("[LocalAuth] Send register OTP failed", error);
-      res.status(500).json({ error: "SERVER_ERROR", message: "Đã xảy ra lỗi, vui lòng thử lại" });
-    }
-  });
-
-  /**
-   * POST /api/auth/verify-register-otp
-   * Body: { email, otp, name, password }
-   * Xác minh OTP → tạo user → trả token.
-   */
-  app.post("/api/auth/verify-register-otp", async (req: Request, res: Response) => {
-    const { email, otp, name, password } = req.body ?? {};
-
-    if (!email || typeof email !== "string") {
-      res.status(400).json({ error: "EMAIL_INVALID" });
-      return;
-    }
-    if (!otp || typeof otp !== "string" || otp.length !== 6) {
-      res.status(400).json({ error: "OTP_INVALID", message: "Mã OTP phải có 6 chữ số" });
-      return;
-    }
-
-    const emailLower = email.toLowerCase().trim();
-
-    try {
-      const result = await db.verifyEmailOtp(emailLower, otp.trim(), "register");
-      if (!result.valid) {
-        const msgs: Record<string, string> = {
-          NOT_FOUND: "Mã OTP không đúng",
-          EXPIRED: "Mã OTP đã hết hạn, vui lòng yêu cầu mã mới",
-          USED: "Mã OTP đã được sử dụng, vui lòng yêu cầu mã mới",
-        };
-        res.status(400).json({ error: `OTP_${result.reason}`, message: msgs[result.reason!] ?? "Mã OTP không hợp lệ" });
-        return;
-      }
-
-      // Tạo user
-      const openId = `local:${emailLower}`;
-      const displayName = String(name).trim();
-      const passwordHash = await bcrypt.hash(String(password), SALT_ROUNDS);
-
-      await db.upsertUser({
-        openId,
-        name: displayName,
-        email: emailLower,
-        loginMethod: "local",
-        passwordHash,
-        lastSignedIn: new Date(),
-      });
-
-      const user = await db.getUserByOpenId(openId);
-      if (!user) throw new Error("Failed to create user");
-
-      const token = await sdk.signSession(
-        { openId: user.openId, appId: "local", name: user.name || emailLower },
-        { expiresInMs: ONE_YEAR_MS }
-      );
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-      res.json({ success: true, token });
-    } catch (error) {
-      console.error("[LocalAuth] Verify register OTP failed", error);
-      res.status(500).json({ error: "SERVER_ERROR", message: "Đã xảy ra lỗi, vui lòng thử lại" });
-    }
-  });
-
-  /**
    * POST /api/auth/forgot-password
    * Body: { email }
-   * Tạo OTP 6 số → log console (hết hạn 10 phút).
+   * Tạo OTP 6 số (TTL 10 phút) → gửi qua Gmail SMTP.
+   * Fallback: log ra console nếu chưa cấu hình SMTP.
    */
   app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
     const { email } = req.body ?? {};
@@ -207,13 +107,7 @@ export function registerLocalAuthRoutes(app: Express) {
 
       if (user && user.passwordHash) {
         const otp = await db.createEmailOtp(emailLower, "reset-password");
-
-        console.log("\n==============================");
-        console.log("[Forgot Password OTP] Mã đặt lại mật khẩu:");
-        console.log(`  Email : ${emailLower}`);
-        console.log(`  OTP   : ${otp}`);
-        console.log("  (Hết hạn sau 10 phút)");
-        console.log("==============================\n");
+        await sendResetPasswordOtp(emailLower, otp);
       }
 
       // Luôn trả success để không lộ email có tồn tại không

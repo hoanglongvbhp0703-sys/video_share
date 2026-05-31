@@ -102,7 +102,7 @@ const vi = {
     // OTP
     otpTitle: "Nhập mã xác nhận",
     otpSentTo: "Mã OTP đã được gửi đến",
-    otpDevHint: "(Dev: kiểm tra console server để lấy mã)",
+    otpDevHint: "(Kiểm tra hòm thư, có thể vào mục Spam)",
     otpNotReceived: "Chưa nhận được mã?",
     resendOtp: "Gửi lại",
     resendIn: "Gửi lại sau {{seconds}}s",

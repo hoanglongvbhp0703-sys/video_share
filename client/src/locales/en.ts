@@ -102,7 +102,7 @@ const en = {
     // OTP
     otpTitle: "Enter verification code",
     otpSentTo: "OTP code sent to",
-    otpDevHint: "(Dev: check server console for the code)",
+    otpDevHint: "(Check your inbox, including Spam folder)",
     otpNotReceived: "Didn't receive the code?",
     resendOtp: "Resend",
     resendIn: "Resend in {{seconds}}s",

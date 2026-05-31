@@ -10,4 +10,6 @@ export const ENV = {
   supabaseUrl: process.env.SUPABASE_URL ?? "",
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
   supabaseBucket: process.env.SUPABASE_BUCKET ?? "videos",
+  smtpUser: process.env.SMTP_USER ?? "",
+  smtpPass: process.env.SMTP_PASS ?? "",
 };
