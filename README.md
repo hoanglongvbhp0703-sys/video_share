@@ -16,6 +16,8 @@
 Monorepo React + Vite frontend — Express + tRPC backend — Drizzle ORM + Supabase PostgreSQL.
 Supports video upload, live streaming with recording, AI-powered chatbot, multilingual UI (VI/EN/JA), and a full admin panel.
 
+**[🚀 Live Demo → videoshare-production-8106.up.railway.app](https://videoshare-production-8106.up.railway.app/)**
+
 [Quick Start](#quick-start) · [Architecture](#architecture) · [Features](#features) · [API & tRPC](#api--trpc-routes) · [Testing](#testing) · [Deployment](#deployment)
 
 </div>
