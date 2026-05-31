@@ -6,6 +6,8 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { sendResetPasswordOtp } from "./email";
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
 const SALT_ROUNDS = 10;
 
 export function registerLocalAuthRoutes(app: Express) {
@@ -168,6 +170,23 @@ export function registerLocalAuthRoutes(app: Express) {
       res.status(500).json({ error: "SERVER_ERROR", message: "Đã xảy ra lỗi, vui lòng thử lại" });
     }
   });
+
+  /**
+   * GET /api/test/otp?email=...&purpose=reset-password  (DEV/TEST ONLY — không dùng trong production)
+   * Trả OTP mới nhất chưa dùng cho email. Chỉ đăng ký khi NODE_ENV !== 'production'.
+   */
+  if (IS_DEV) {
+    app.get("/api/test/otp", async (req: Request, res: Response) => {
+      const email = typeof req.query.email === "string" ? req.query.email.toLowerCase().trim() : "";
+      const purpose = typeof req.query.purpose === "string" ? req.query.purpose : "reset-password";
+      if (!email) {
+        res.status(400).json({ error: "EMAIL_REQUIRED" });
+        return;
+      }
+      const otp = await db.getLatestOtpForTest(email, purpose as "register" | "reset-password");
+      res.json({ otp });
+    });
+  }
 
   /**
    * POST /api/auth/reset-password  (legacy — token-based, kept for backwards compat)

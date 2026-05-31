@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { login, tGet, tPost, TEST_USER, TEST_ADMIN } from "./helpers";
+import { login, tGet, tPost, TEST_USER, TEST_ADMIN, TEST_USER_3 } from "./helpers";
 
 // ---------------------------------------------------------------------------
 // POST /api/auth/login
@@ -129,6 +129,112 @@ test.describe("POST /api/auth/reset-password", () => {
     expect(res.status()).toBe(400);
     const body = await res.json();
     expect(body.error).toBe("PASSWORD_TOO_SHORT");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/reset-password-otp
+// ---------------------------------------------------------------------------
+
+test.describe("POST /api/auth/reset-password-otp — validation", () => {
+  test("thiếu otp → 400 OTP_INVALID", async ({ request }) => {
+    const res = await request.post("/api/auth/reset-password-otp", {
+      data: { email: TEST_ADMIN.email, password: "NewPass123!" },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("OTP_INVALID");
+  });
+
+  test("otp không đúng 6 ký tự → 400 OTP_INVALID", async ({ request }) => {
+    const res = await request.post("/api/auth/reset-password-otp", {
+      data: { email: TEST_ADMIN.email, otp: "12345", password: "NewPass123!" },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("OTP_INVALID");
+  });
+
+  test("otp 7 ký tự → 400 OTP_INVALID", async ({ request }) => {
+    const res = await request.post("/api/auth/reset-password-otp", {
+      data: { email: TEST_ADMIN.email, otp: "1234567", password: "NewPass123!" },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("OTP_INVALID");
+  });
+
+  test("mật khẩu mới quá ngắn → 400 PASSWORD_TOO_SHORT", async ({ request }) => {
+    const res = await request.post("/api/auth/reset-password-otp", {
+      data: { email: TEST_ADMIN.email, otp: "123456", password: "123" },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("PASSWORD_TOO_SHORT");
+  });
+
+  test("OTP sai (không tồn tại trong DB) → 400 OTP_NOT_FOUND", async ({ request }) => {
+    const res = await request.post("/api/auth/reset-password-otp", {
+      data: { email: TEST_ADMIN.email, otp: "000000", password: "NewPass123!" },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("OTP_NOT_FOUND");
+  });
+});
+
+test.describe("POST /api/auth/reset-password-otp — E2E flow (dev server)", () => {
+  const TEMP_PASS = "TempReset999!";
+
+  test("forgot → lấy OTP (test endpoint) → đặt lại mật khẩu → đăng nhập thành công → restore", async ({
+    request,
+  }) => {
+    const { email, password: originalPass } = TEST_USER_3;
+
+    // 1. Yêu cầu OTP
+    const forgotRes = await request.post("/api/auth/forgot-password", {
+      data: { email },
+    });
+    expect(forgotRes.status()).toBe(200);
+    expect((await forgotRes.json()).success).toBe(true);
+
+    // 2. Lấy OTP qua endpoint dev-only
+    const otpRes = await request.get(`/api/test/otp?email=${encodeURIComponent(email)}`);
+    expect(otpRes.status()).toBe(200);
+    const { otp } = await otpRes.json();
+    expect(typeof otp).toBe("string");
+    expect(otp).toHaveLength(6);
+
+    // 3. Đặt lại mật khẩu
+    const resetRes = await request.post("/api/auth/reset-password-otp", {
+      data: { email, otp, password: TEMP_PASS },
+    });
+    expect(resetRes.status()).toBe(200);
+    expect((await resetRes.json()).success).toBe(true);
+
+    // 4. Đăng nhập với mật khẩu mới
+    const loginResult = await login(request, email, TEMP_PASS);
+    expect(loginResult.status).toBe(200);
+    expect(loginResult.body.success).toBe(true);
+
+    // 5. Dùng OTP mới nhất đã bị mark-used → lỗi nếu dùng lại
+    const reuseRes = await request.post("/api/auth/reset-password-otp", {
+      data: { email, otp, password: "AnotherPass123!" },
+    });
+    expect(reuseRes.status()).toBe(400);
+    const reuseBody = await reuseRes.json();
+    expect(reuseBody.error).toBe("OTP_USED");
+
+    // 6. Restore mật khẩu gốc
+    const forgotRes2 = await request.post("/api/auth/forgot-password", {
+      data: { email },
+    });
+    expect(forgotRes2.status()).toBe(200);
+    const otpRes2 = await request.get(`/api/test/otp?email=${encodeURIComponent(email)}`);
+    const { otp: otp2 } = await otpRes2.json();
+    await request.post("/api/auth/reset-password-otp", {
+      data: { email, otp: otp2, password: originalPass },
+    });
   });
 });
 

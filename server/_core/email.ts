@@ -1,22 +1,24 @@
 import nodemailer from "nodemailer";
 
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
-
 function createTransporter() {
-  if (!SMTP_USER || !SMTP_PASS) return null;
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // TLS
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!user || !pass) return null;
+  return {
+    transport: nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false, // TLS (STARTTLS)
+      auth: { user, pass },
+    }),
+    user,
+  };
 }
 
 export async function sendResetPasswordOtp(to: string, otp: string): Promise<void> {
-  const transporter = createTransporter();
+  const smtp = createTransporter();
 
-  if (!transporter) {
+  if (!smtp) {
     // Fallback: log ra console khi chưa cấu hình SMTP
     console.log("\n==============================");
     console.log("[Forgot Password OTP] Chưa cấu hình SMTP — log console:");
@@ -88,12 +90,18 @@ export async function sendResetPasswordOtp(to: string, otp: string): Promise<voi
 </html>
   `.trim();
 
-  await transporter.sendMail({
-    from: `"VideoShare" <${SMTP_USER}>`,
-    to,
-    subject: "Mã đặt lại mật khẩu của bạn",
-    html,
-  });
-
-  console.log(`[Email] OTP reset-password sent to ${to}`);
+  try {
+    await smtp.transport.sendMail({
+      from: `"VideoShare" <${smtp.user}>`,
+      to,
+      subject: "Mã đặt lại mật khẩu của bạn",
+      html,
+    });
+    console.log(`[Email] OTP reset-password sent to ${to}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Email] SMTP gửi thất bại → ${msg}`);
+    console.error("[Email] Kiểm tra SMTP_USER/SMTP_PASS và Gmail App Password");
+    throw err;
+  }
 }

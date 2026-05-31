@@ -1390,3 +1390,23 @@ export async function verifyEmailOtp(
   await db.update(emailOtps).set({ usedAt: new Date() }).where(eq(emailOtps.id, record.id));
   return { valid: true };
 }
+
+/** Chỉ dùng trong dev/test — lấy OTP chưa sử dụng mới nhất của email */
+export async function getLatestOtpForTest(email: string, purpose: "register" | "reset-password"): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select({ otp: emailOtps.otp })
+    .from(emailOtps)
+    .where(
+      and(
+        eq(emailOtps.email, email),
+        eq(emailOtps.purpose, purpose),
+        sql`${emailOtps.usedAt} IS NULL`,
+        gt(emailOtps.expiresAt, new Date()),
+      )
+    )
+    .orderBy(desc(emailOtps.createdAt))
+    .limit(1);
+  return result[0]?.otp ?? null;
+}

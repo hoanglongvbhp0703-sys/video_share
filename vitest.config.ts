@@ -14,6 +14,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "server/**/*.spec.ts", "client/**/*.test.ts", "client/**/*.spec.ts"],
+    // Bao gồm unit tests nhưng loại trừ Playwright API tests (tests/api/)
+    include: [
+      "server/**/*.test.ts",
+      "client/**/*.test.ts",
+      "tests/unit/**/*.test.ts",
+    ],
+    exclude: ["tests/api/**", "node_modules/**"],
+    pool: "forks",
   },
 });

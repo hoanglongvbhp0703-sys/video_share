@@ -3,8 +3,10 @@ import type { APIRequestContext } from "@playwright/test";
 // Seeded mock users (password set by set-default-password.mjs: "1234567Long")
 export const TEST_USER = { email: "minhtuan@example.com", password: "1234567Long" };
 export const TEST_USER_2 = { email: "honganh@example.com", password: "1234567Long" };
-// Created by global-setup.ts with a predictable password
+// Created by global-setup.ts with predictable passwords
 export const TEST_ADMIN = { email: "pw_admin@playwright.test", password: "PwAdmin123!" };
+// Dùng riêng cho flow reset-password — password được restore sau mỗi test
+export const TEST_USER_3 = { email: "pw_user3@playwright.test", password: "PwUser123!" };
 
 // ---------------------------------------------------------------------------
 // Auth helpers
