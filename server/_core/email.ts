@@ -7,10 +7,11 @@ function createTransporter() {
   return {
     transport: nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false, // TLS (STARTTLS)
+      port: 465,
+      secure: true, // SSL — Railway block port 587, dùng 465 thay thế
+      family: 4,    // Buộc IPv4 — Railway không có IPv6 outbound route
       auth: { user, pass },
-    }),
+    } as any),
     user,
   };
 }
