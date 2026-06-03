@@ -187,6 +187,7 @@ const ja = {
     discover: "探索",
     subtitle: "最も視聴された動画",
     noVideos: "動画がありません",
+    noMoreVideos: "すべての動画を表示しました",
   },
   video: {
     views: "回視聴",
@@ -339,6 +340,7 @@ const ja = {
     title: "トレンド",
     subtitle: "本日最も視聴された動画",
     noVideos: "動画がありません",
+    noMoreVideos: "すべての動画を表示しました",
   },
   search: {
     resultsFor: "の検索結果",
@@ -470,6 +472,7 @@ const ja = {
     descTinTuc: "ニュース、時事問題、分析",
     videoCount: "{{count}}本の動画",
     noVideos: "このタグの動画はまだありません。",
+    noMoreVideos: "すべての動画を表示しました",
     exploreAll: "すべての動画を探す →",
   },
   chatbot: {

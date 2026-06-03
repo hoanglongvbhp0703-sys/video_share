@@ -187,6 +187,7 @@ const vi = {
     discover: "Khám phá",
     subtitle: "Những video được xem nhiều nhất",
     noVideos: "Chưa có video nào",
+    noMoreVideos: "Đã tải hết video",
   },
   video: {
     views: "lượt xem",
@@ -339,6 +340,7 @@ const vi = {
     title: "Xu hướng",
     subtitle: "Những video được xem nhiều nhất hôm nay",
     noVideos: "Chưa có video nào",
+    noMoreVideos: "Đã tải hết video xu hướng",
   },
   search: {
     resultsFor: "Kết quả tìm kiếm cho",
@@ -470,6 +472,7 @@ const vi = {
     descTinTuc: "Tin tức, thời sự và phân tích",
     videoCount: "{{count}} video",
     noVideos: "Chưa có video nào với tag này.",
+    noMoreVideos: "Đã tải hết video",
     exploreAll: "Khám phá tất cả video →",
   },
   chatbot: {

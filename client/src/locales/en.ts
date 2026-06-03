@@ -187,6 +187,7 @@ const en = {
     discover: "Explore",
     subtitle: "Most watched videos",
     noVideos: "No videos yet",
+    noMoreVideos: "You've reached the end",
   },
   video: {
     views: "views",
@@ -339,6 +340,7 @@ const en = {
     title: "Trending",
     subtitle: "Most watched videos today",
     noVideos: "No videos yet",
+    noMoreVideos: "You've reached the end",
   },
   search: {
     resultsFor: "Search results for",
@@ -470,6 +472,7 @@ const en = {
     descTinTuc: "News, current events and analysis",
     videoCount: "{{count}} videos",
     noVideos: "No videos with this tag yet.",
+    noMoreVideos: "You've reached the end",
     exploreAll: "Explore all videos →",
   },
   chatbot: {

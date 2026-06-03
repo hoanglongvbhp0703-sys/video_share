@@ -116,6 +116,7 @@ export default function Watch() {
   const recordHistoryMutation = trpc.watchHistory.record.useMutation();
   const updateDurationMutation = trpc.watchHistory.updateDuration.useMutation();
   const utils = trpc.useUtils();
+  const viewCountedRef = useRef(false);
 
   const toggleLikeMutation = trpc.likes.toggle.useMutation({
     onMutate: async ({ videoId: vid, type }) => {
@@ -180,13 +181,33 @@ export default function Watch() {
   });
 
   useEffect(() => {
-    if (videoId) {
-      incrementViewMutation.mutate({ id: videoId });
-      if (isAuthenticated) {
-        recordHistoryMutation.mutate({ videoId, watchDuration: 0 });
-      }
+    if (!videoId) return;
+
+    viewCountedRef.current = false;
+
+    if (isAuthenticated) {
+      recordHistoryMutation.mutate({ videoId, watchDuration: 0 });
     }
-  }, [videoId]);
+
+    // Tính 1 lượt xem sau 30 giây xem liên tục
+    const timer = setTimeout(() => {
+      if (viewCountedRef.current) return;
+      viewCountedRef.current = true;
+      incrementViewMutation.mutate(
+        { id: videoId },
+        {
+          onSuccess: () => {
+            // Đồng bộ cache ngay để bình luận sau đó không làm lượt xem nhảy số
+            utils.videos.getById.setData({ id: videoId }, (old) =>
+              old ? { ...old, viewCount: old.viewCount + 1 } : old
+            );
+          },
+        }
+      );
+    }, 30_000);
+
+    return () => clearTimeout(timer);
+  }, [videoId, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show toast once if resuming from a saved position
   useEffect(() => {
